@@ -22,6 +22,7 @@ import com.example.lucasmatiasminzbook.nav.Route
 import com.example.lucasmatiasminzbook.ui.LoginScreen
 import com.example.lucasmatiasminzbook.ui.RegisterScreen
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
+import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -122,7 +123,11 @@ class MainActivity : ComponentActivity() {
                             }
 
                             // Placeholders (siguientes etapas)
-                            composable(Route.Catalog.path) { PlaceholderScreen("Catálogo (próximo)") }
+                            composable(Route.Catalog.path) {
+                                CatalogScreen(
+                                    onBack = { nav.popBackStack() } // ← esto permite volver al menú
+                                )
+                            }
                             composable(Route.MyBooks.path) { PlaceholderScreen("Mis libros (próximo)") }
                             composable(Route.Ratings.path) { PlaceholderScreen("Calificaciones (próximo)") }
                         }
