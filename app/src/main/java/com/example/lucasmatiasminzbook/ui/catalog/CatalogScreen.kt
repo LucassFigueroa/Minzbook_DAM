@@ -24,14 +24,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.lucasmatiasminzbook.data.local.book.Book
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
-import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Currency
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,13 +42,16 @@ fun CatalogScreen(
 ) {
     val ctx = LocalContext.current
     val repo = remember { BookRepository(ctx) }
-    val scope = rememberCoroutineScope()
     val books by repo.books().collectAsState(initial = emptyList())
+    val currency = remember {
+        NumberFormat.getCurrencyInstance(Locale("es", "CL")).apply {
+            currency = Currency.getInstance("CLP")
+            maximumFractionDigits = 0
+        }
+    }
 
     // Semilla segura una sola vez
-    LaunchedEffect(Unit) {
-        scope.launch { repo.ensureSeeded() }
-    }
+    LaunchedEffect(Unit) { repo.ensureSeeded() }
 
     Scaffold(
         topBar = {
@@ -69,7 +73,11 @@ fun CatalogScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(books, key = { it.id }) { book ->
-                BookCard(book = book, onClick = { onOpenBook(book.id) })
+                BookCard(
+                    book = book,
+                    currency = currency,
+                    onClick = { onOpenBook(book.id) }
+                )
                 Divider()
             }
         }
@@ -77,7 +85,11 @@ fun CatalogScreen(
 }
 
 @Composable
-private fun BookCard(book: Book, onClick: () -> Unit) {
+private fun BookCard(
+    book: Book,
+    currency: NumberFormat,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -91,6 +103,16 @@ private fun BookCard(book: Book, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                "Compra: ${currency.format(book.purchasePrice)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Arriendo 1 semana: ${currency.format(book.rentPrice)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

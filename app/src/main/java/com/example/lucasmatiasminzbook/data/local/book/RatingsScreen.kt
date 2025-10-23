@@ -40,7 +40,6 @@ fun RatingsScreen(
     val ctx = LocalContext.current
     val repo = remember { BookRepository(ctx) }
     val email = remember { AuthLocalStore.lastEmail(ctx) }
-    val name = remember { AuthLocalStore.lastName(ctx) ?: "Tú" }
 
     // Si no hay sesión, mostramos vacío amigable
     if (email == null) {
@@ -50,7 +49,8 @@ fun RatingsScreen(
 
     // Cargamos las reseñas del usuario
     val myReviews by repo.reviewsForUser(email).collectAsState(initial = emptyList())
-    // Opcional: podríamos enriquecer con títulos si hiciera falta (aquí usamos solo lo guardado en Review)
+    val books by repo.books().collectAsState(initial = emptyList())
+    val titles = remember(books) { books.associate { it.id to it.title } }
 
     Scaffold(
         topBar = {
@@ -77,7 +77,8 @@ fun RatingsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(myReviews, key = { it.id }) { review ->
-                    ReviewCard(review = review)
+                    val title = titles[review.bookId] ?: "Libro #${review.bookId}"
+                    ReviewCard(review = review, bookTitle = title)
                     Divider()
                 }
             }
@@ -86,10 +87,10 @@ fun RatingsScreen(
 }
 
 @Composable
-private fun ReviewCard(review: Review) {
+private fun ReviewCard(review: Review, bookTitle: String) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Libro #${review.bookId}", style = MaterialTheme.typography.titleSmall)
+            Text(bookTitle, style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("★".repeat(review.rating.coerceIn(1,5)))
                 if (review.rating < 5) Text("☆".repeat(5-review.rating.coerceIn(0,5)))

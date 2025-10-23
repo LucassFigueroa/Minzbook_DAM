@@ -39,14 +39,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.nav.Route
 import com.example.lucasmatiasminzbook.ui.auth.canUseBiometric
 import com.example.lucasmatiasminzbook.ui.auth.showBiometricPrompt
 import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
+import com.example.lucasmatiasminzbook.ui.catalog.BookDetailScreen
+import com.example.lucasmatiasminzbook.ui.mybooks.MyBooksScreen
 import com.example.lucasmatiasminzbook.ui.ratings.RatingsScreen
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
 
@@ -178,10 +182,24 @@ class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
                                 CatalogScreen(
                                     onBack = { nav.popBackStack() },
                                     onOpenBook = { bookId ->
-                                        // Cuando agregues BookDetail:
-                                        // nav.navigate("${Route.BookDetail.path}/$bookId")
+                                        nav.navigate("${Route.BookDetail.path}/$bookId")
                                     }
                                 )
+                            }
+
+                            composable(
+                                route = "${Route.BookDetail.path}/{bookId}",
+                                arguments = listOf(navArgument("bookId") { type = NavType.LongType })
+                            ) { entry ->
+                                val id = entry.arguments?.getLong("bookId")
+                                if (id == null) {
+                                    nav.popBackStack()
+                                } else {
+                                    BookDetailScreen(
+                                        bookId = id,
+                                        onBack = { nav.popBackStack() }
+                                    )
+                                }
                             }
 
                             // CALIFICACIONES (muestra las reseñas del usuario)
@@ -189,9 +207,9 @@ class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
                                 RatingsScreen(onBack = { nav.popBackStack() })
                             }
 
-                            // MIS LIBROS (placeholder por ahora)
+                            // MIS LIBROS (creación de libros propios)
                             composable(Route.MyBooks.path) {
-                                PlaceholderScreen("Mis libros (próximo)")
+                                MyBooksScreen(onBack = { nav.popBackStack() })
                             }
                         }
                     }
