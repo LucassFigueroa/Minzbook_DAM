@@ -1,0 +1,40 @@
+package com.example.lucasmatiasminzbook.data.local.database
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import com.example.lucasmatiasminzbook.data.local.book.Book
+import com.example.lucasmatiasminzbook.data.local.book.BookDao
+import com.example.lucasmatiasminzbook.data.local.book.Review
+import com.example.lucasmatiasminzbook.data.local.book.ReviewDao
+import com.example.lucasmatiasminzbook.data.local.user.UserDao
+import com.example.lucasmatiasminzbook.data.local.user.UserEntity
+
+@Database(
+    entities = [UserEntity::class, Book::class, Review::class],
+    version = 3, // súbela si antes era 2
+    exportSchema = false
+)
+abstract class AppDatabase : RoomDatabase() {
+
+    abstract fun userDao(): UserDao
+    abstract fun bookDao(): BookDao
+    abstract fun reviewDao(): ReviewDao
+
+    companion object {
+        @Volatile private var INSTANCE: AppDatabase? = null
+
+        fun getInstance(context: Context): AppDatabase =
+            INSTANCE ?: synchronized(this) {
+                INSTANCE ?: Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "minzbook.db"
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { INSTANCE = it }
+            }
+    }
+}
