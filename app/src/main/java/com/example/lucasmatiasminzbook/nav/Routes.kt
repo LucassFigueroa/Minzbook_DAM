@@ -6,6 +6,7 @@ sealed class Route(val path: String) {
     data object Register : Route("register")
     data object Menu : Route("menu")
     data object Catalog : Route("catalog")
+    data object BookDetail : Route("book")
     data object MyBooks : Route("my_books")
     data object Ratings : Route("ratings")
 }

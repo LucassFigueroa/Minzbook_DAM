@@ -1,4 +1,4 @@
-package com.example.lucasmatiasminzbook.data.local.book
+package com.example.lucasmatiasminzbook.ui.mybooks
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,18 +55,25 @@ fun MyBooksScreen(
     var purchasePrice by remember { mutableStateOf("") }
     var rentPrice by remember { mutableStateOf("") }
     var coverUri by remember { mutableStateOf<Uri?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var isError by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
 
     val pickImage = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri -> if (uri != null) coverUri = uri }
+    ) { uri ->
+        if (uri != null) coverUri = uri
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear libro") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } }
+                title = { Text("Mis libros") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                }
             )
         }
     ) { padding ->
@@ -80,7 +88,7 @@ fun MyBooksScreen(
                 Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
                     Image(
                         painter = rememberAsyncImagePainter(coverUri),
-                        contentDescription = "Portada",
+                        contentDescription = "Portada seleccionada",
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp),
@@ -89,40 +97,86 @@ fun MyBooksScreen(
                 }
             }
 
-            OutlinedButton(onClick = {
-                pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Text(if (coverUri == null) "Elegir portada" else "Cambiar portada") }
-
-            OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Título") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = author, onValueChange = { author = it }, label = { Text("Autor") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+            OutlinedButton(
+                onClick = {
+                    pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }
+            ) {
+                Text(if (coverUri == null) "Elegir portada" else "Cambiar portada")
+            }
 
             OutlinedTextField(
-                value = purchasePrice, onValueChange = { purchasePrice = it.filter(Char::isDigit) },
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Título") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = author,
+                onValueChange = { author = it },
+                label = { Text("Autor") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Descripción") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
+            )
+
+            OutlinedTextField(
+                value = purchasePrice,
+                onValueChange = { purchasePrice = it.filter(Char::isDigit) },
                 label = { Text("Precio compra (CLP)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true, modifier = Modifier.fillMaxWidth()
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
-                value = rentPrice, onValueChange = { rentPrice = it.filter(Char::isDigit) },
+                value = rentPrice,
+                onValueChange = { rentPrice = it.filter(Char::isDigit) },
                 label = { Text("Precio arriendo 1 semana (CLP)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true, modifier = Modifier.fillMaxWidth()
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
+            if (message != null) {
+                val color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                Text(message!!, color = color)
+            }
 
             Button(
                 onClick = {
-                    error = null
-                    val p = purchasePrice.toIntOrNull()
-                    val r = rentPrice.toIntOrNull()
+                    message = null
+                    isError = false
+                    val purchase = purchasePrice.toIntOrNull()
+                    val rent = rentPrice.toIntOrNull()
+
                     when {
-                        title.isBlank() -> error = "Ingresa un título"
-                        author.isBlank() -> error = "Ingresa un autor"
-                        description.isBlank() -> error = "Ingresa una descripción"
-                        p == null || p <= 0 -> error = "Precio de compra inválido"
-                        r == null || r <= 0 -> error = "Precio de arriendo inválido"
+                        title.isBlank() -> {
+                            message = "Ingresa un título"
+                            isError = true
+                        }
+                        author.isBlank() -> {
+                            message = "Ingresa un autor"
+                            isError = true
+                        }
+                        description.isBlank() -> {
+                            message = "Ingresa una descripción"
+                            isError = true
+                        }
+                        purchase == null || purchase <= 0 -> {
+                            message = "Precio de compra inválido"
+                            isError = true
+                        }
+                        rent == null || rent <= 0 -> {
+                            message = "Precio de arriendo inválido"
+                            isError = true
+                        }
                         else -> {
                             scope.launch {
                                 saving = true
@@ -132,22 +186,31 @@ fun MyBooksScreen(
                                         author = author.trim(),
                                         description = description.trim(),
                                         coverUri = coverUri?.toString(),
-                                        purchasePrice = p,
-                                        rentPrice = r
+                                        purchasePrice = purchase,
+                                        rentPrice = rent
                                     )
-                                    title = ""; author = ""; description = ""
-                                    purchasePrice = ""; rentPrice = ""; coverUri = null
-                                    error = "Libro creado ✅"
+                                    title = ""
+                                    author = ""
+                                    description = ""
+                                    purchasePrice = ""
+                                    rentPrice = ""
+                                    coverUri = null
+                                    message = "Libro creado correctamente"
                                 } catch (e: Exception) {
-                                    error = e.localizedMessage ?: "No se pudo crear el libro"
-                                } finally { saving = false }
+                                    message = e.localizedMessage ?: "No se pudo crear el libro"
+                                    isError = true
+                                } finally {
+                                    saving = false
+                                }
                             }
                         }
                     }
                 },
                 enabled = !saving,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text(if (saving) "Guardando..." else "Guardar libro") }
+            ) {
+                Text(if (saving) "Guardando..." else "Guardar libro")
+            }
         }
     }
 }
