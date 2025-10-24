@@ -7,54 +7,72 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import coil.compose.rememberAsyncImagePainter
+import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.nav.Route
 import com.example.lucasmatiasminzbook.ui.auth.canUseBiometric
 import com.example.lucasmatiasminzbook.ui.auth.showBiometricPrompt
-import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
+import com.example.lucasmatiasminzbook.ui.cart.CartScreen
 import com.example.lucasmatiasminzbook.ui.catalog.BookDetailScreen
+import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
 import com.example.lucasmatiasminzbook.ui.mybooks.MyBooksScreen
+import com.example.lucasmatiasminzbook.ui.profile.ProfileScreen
 import com.example.lucasmatiasminzbook.ui.ratings.RatingsScreen
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
 
-class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+class MainActivity : FragmentActivity() {
+
     private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +83,31 @@ class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
                 val ui by authViewModel.uiState.collectAsState()
                 val nav = rememberNavController()
 
-                Scaffold { innerPadding ->
+                Scaffold(
+                    topBar = {
+                        if (ui.isAuthenticated) {
+                            TopAppBar(
+                                title = { Text("Minzbook", color = Color.White) },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = Color(0xFF00695C)
+                                ),
+                                navigationIcon = {
+                                    IconButton(onClick = { nav.navigate(Route.Menu.path) }) {
+                                        Icon(Icons.Filled.Home, contentDescription = "Inicio", tint = Color.White)
+                                    }
+                                },
+                                actions = {
+                                    IconButton(onClick = { nav.navigate(Route.Cart.path) }) {
+                                        Icon(Icons.Filled.ShoppingCart, contentDescription = "Carrito", tint = Color.White)
+                                    }
+                                    IconButton(onClick = { nav.navigate(Route.Profile.path) }) {
+                                        Icon(Icons.Filled.AccountCircle, contentDescription = "Perfil", tint = Color.White)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                ) { innerPadding ->
                     Surface(
                         modifier = Modifier
                             .fillMaxSize()
@@ -76,81 +118,74 @@ class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
                             navController = nav,
                             startDestination = if (ui.isAuthenticated) Route.Menu.path else Route.Home.path
                         ) {
-                            // HOME
                             composable(Route.Home.path) {
                                 MinzbookHome(
                                     uiState = ui,
                                     onLoginClick = { nav.navigate(Route.Login.path) }
                                 )
                             }
-
-                            // LOGIN (valida y luego exige huella para entrar)
                             composable(Route.Login.path) {
                                 LoginScreen(
                                     onBack = { nav.popBackStack() },
                                     onGoRegister = { nav.navigate(Route.Register.path) },
-
-                                    // 1) Valida credenciales; NO navega aquí
                                     onTryLogin = { email, password ->
                                         val repo = UserRepository(this@MainActivity)
                                         val res = repo.login(email, password)
                                         if (res.isSuccess) {
                                             val user = res.getOrNull()!!
-                                            // Guardamos sesión para tener nombre/email disponibles
                                             AuthLocalStore.setSession(
                                                 applicationContext,
                                                 user.email,
                                                 user.name
                                             )
-                                            // Si quieres forzar huella para ese usuario:
-                                            AuthLocalStore.setBiometricEnabled(applicationContext, true)
-                                            null // OK → LoginScreen mostrará el prompt cuando el usuario toque el botón de huella
+                                            null
                                         } else {
                                             res.exceptionOrNull()?.localizedMessage
                                                 ?: "Usuario o contraseña incorrectos"
                                         }
                                     },
-
-                                    // 2) Prompt biométrico: si OK → recién navega al menú
-                                    onBiometricClick = {
-                                        if (!canUseBiometric(this@MainActivity)) {
-                                            // Aquí puedes mostrar un Toast/snackbar si no hay soporte
-                                            return@LoginScreen
-                                        }
-                                        showBiometricPrompt(
-                                            activity = this@MainActivity,
-                                            onSuccess = {
-                                                val name = AuthLocalStore.lastName(applicationContext) ?: "Usuario"
-                                                authViewModel.simulateLogin(name)
-                                                nav.navigate(Route.Menu.path) {
-                                                    popUpTo(Route.Home.path) { inclusive = true }
-                                                }
-                                            },
-                                            onError = {
-                                                // Opcional: mostrar error en snackbar/toast
+                                    onCredentialsOk = {
+                                        val name = AuthLocalStore.lastName(applicationContext) ?: "Usuario"
+                                        if (canUseBiometric(this@MainActivity)) {
+                                            showBiometricPrompt(
+                                                activity = this@MainActivity,
+                                                onSuccess = {
+                                                    authViewModel.simulateLogin(name)
+                                                    nav.navigate(Route.Menu.path) {
+                                                        popUpTo(Route.Home.path) { inclusive = true }
+                                                    }
+                                                },
+                                                onError = {}
+                                            )
+                                        } else {
+                                            authViewModel.simulateLogin(name)
+                                            nav.navigate(Route.Menu.path) {
+                                                popUpTo(Route.Home.path) { inclusive = true }
                                             }
-                                        )
+                                        }
+                                    },
+                                    rememberInitial = AuthLocalStore.isRememberMe(applicationContext),
+                                    onToggleRemember = {
+                                        AuthLocalStore.setRememberMe(applicationContext, it)
                                     }
                                 )
                             }
-
-                            // REGISTER (tras crear, vuelve a Login)
                             composable(Route.Register.path) {
                                 RegisterScreen(
                                     onBack = { nav.popBackStack() },
                                     onGoLogin = { nav.navigate(Route.Login.path) },
-                                    onTryRegister = { email, password ->
+                                    onTryRegister = { name, email, password, photoUri ->
                                         val repo = UserRepository(this@MainActivity)
-                                        val display = email.substringBefore("@")
-                                            .replaceFirstChar { it.uppercase() }
-                                        val res = repo.register(
-                                            name = display,
-                                            email = email,
-                                            password = password
-                                        )
-                                        if (res.isSuccess) null
-                                        else res.exceptionOrNull()?.localizedMessage
-                                            ?: "No se pudo crear la cuenta"
+                                        val res = repo.register(name, email, password)
+                                        if (res.isSuccess) {
+                                            if (photoUri != null) {
+                                                AuthLocalStore.setProfilePhotoUri(applicationContext, photoUri)
+                                            }
+                                            null
+                                        } else {
+                                            res.exceptionOrNull()?.localizedMessage
+                                                ?: "No se pudo crear la cuenta"
+                                        }
                                     },
                                     onRegistered = {
                                         nav.navigate(Route.Login.path) {
@@ -159,8 +194,6 @@ class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
                                     }
                                 )
                             }
-
-                            // MENÚ
                             composable(Route.Menu.path) {
                                 MinzbookMenu(
                                     userName = ui.displayName ?: "Usuario",
@@ -173,43 +206,37 @@ class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
                                         nav.navigate(Route.Home.path) {
                                             popUpTo(Route.Menu.path) { inclusive = true }
                                         }
-                                    }
+                                    },
+                                    onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
                                 )
                             }
-
-                            // CATÁLOGO
                             composable(Route.Catalog.path) {
                                 CatalogScreen(
                                     onBack = { nav.popBackStack() },
-                                    onOpenBook = { bookId ->
-                                        nav.navigate("${Route.BookDetail.path}/$bookId")
-                                    }
+                                    onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
                                 )
                             }
-
                             composable(
-                                route = "${Route.BookDetail.path}/{bookId}",
-                                arguments = listOf(navArgument("bookId") { type = NavType.LongType })
-                            ) { entry ->
-                                val id = entry.arguments?.getLong("bookId")
-                                if (id == null) {
-                                    nav.popBackStack()
-                                } else {
-                                    BookDetailScreen(
-                                        bookId = id,
-                                        onBack = { nav.popBackStack() }
-                                    )
-                                }
+                                route = "${Route.BookDetail.path}/{id}",
+                                arguments = listOf(navArgument("id") { type = NavType.LongType })
+                            ) { backStackEntry ->
+                                val id = backStackEntry.arguments?.getLong("id") ?: 0L
+                                BookDetailScreen(bookId = id, onBack = { nav.popBackStack() })
                             }
-
-                            // CALIFICACIONES (muestra las reseñas del usuario)
+                            composable(Route.Profile.path) {
+                                ProfileScreen(onBack = { nav.popBackStack() })
+                            }
+                            composable(Route.MyBooks.path) {
+                                MyBooksScreen(
+                                    onBack = { nav.popBackStack() },
+                                    onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
+                                )
+                            }
                             composable(Route.Ratings.path) {
                                 RatingsScreen(onBack = { nav.popBackStack() })
                             }
-
-                            // MIS LIBROS (creación de libros propios)
-                            composable(Route.MyBooks.path) {
-                                MyBooksScreen(onBack = { nav.popBackStack() })
+                            composable(Route.Cart.path) {
+                                CartScreen(onBack = { nav.popBackStack() })
                             }
                         }
                     }
@@ -219,42 +246,12 @@ class MainActivity : FragmentActivity() { // Requisito para BiometricPrompt
     }
 }
 
-/* ================== UI de soporte ================== */
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TopBar(title: String, userLabel: String?) {
-    CenterAlignedTopAppBar(
-        title = {
-            Text(
-                title,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 22.sp
-            )
-        },
-        colors = centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface
-        ),
-        actions = {
-            if (userLabel != null) {
-                AssistChip(
-                    onClick = { /* TODO: perfil próximamente */ },
-                    label = { Text(userLabel) }
-                )
-            }
-        }
-    )
-}
-
 @Composable
 fun MinzbookHome(
     uiState: AuthUiState,
     onLoginClick: () -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
-        TopBar(title = "Minzbook", userLabel = uiState.displayName)
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -267,7 +264,6 @@ fun MinzbookHome(
                     .padding(top = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Logo centrado
                 Image(
                     painter = painterResource(id = R.drawable.minzbook_logo),
                     contentDescription = "Logo Minzbook",
@@ -275,23 +271,33 @@ fun MinzbookHome(
                         .size(140.dp)
                         .padding(bottom = 16.dp)
                 )
-
-                // Mensaje de bienvenida
-                WelcomeMessageCard()
-
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 4.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Bienvenido a Minzbook, una aplicacion donde podras comprar nuevos libros, arrendar o incluso puedes hacer libros tu mismo!, esperamos que disfrutes tu experiencia \uD83D\uDC9A\uD83D\uDC9A\uD83D\uDC9A!",
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
-
                 if (!uiState.isAuthenticated) {
                     Button(
                         onClick = onLoginClick,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
+                        shape = MaterialTheme.shapes.extraLarge
                     ) { Text("Vamos!!!") }
                 } else {
                     Text(
@@ -306,84 +312,101 @@ fun MinzbookHome(
 }
 
 @Composable
-private fun WelcomeMessageCard() {
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 2.dp,
-        shadowElevation = 4.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Bienvenido a Minzbook, nuestra app de lectura y creadora de nuevos autores! " +
-                        "Ingresa abajo para acceder a nuestro menú o ser uno de nuestros autores",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.height(8.dp))
-            Icon(
-                imageVector = Icons.Filled.Favorite,
-                contentDescription = "Corazón",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun MinzbookMenu(
     userName: String,
     onExplore: () -> Unit,
     onMyBooks: () -> Unit,
     onRatings: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onOpenBook: (Long) -> Unit
 ) {
-    Column(Modifier.fillMaxSize()) {
-        TopBar(title = "Minzbook", userLabel = userName)
+    val repo = BookRepository(LocalContext.current)
+    LaunchedEffect(Unit) {
+        repo.ensureSeeded()
+    }
+    val books by repo.books().collectAsState(initial = emptyList())
+    val featuredBook = remember(books) { books.randomOrNull() }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(
-                onClick = onExplore,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text("Bienvenido, $userName", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(16.dp))
+
+        // Libro destacado
+        if (featuredBook != null) {
+            Text("Libro del día", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(8.dp))
+            Card(
+                onClick = { onOpenBook(featuredBook.id) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge
-            ) { Text("Explorar libros") }
-
-            OutlinedButton(
-                onClick = onMyBooks,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge
-            ) { Text("Mis libros") }
-
-            OutlinedButton(
-                onClick = onRatings,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge
-            ) { Text("Calificaciones") }
-
-            TextButton(onClick = onLogout) { Text("Cerrar sesión") }
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Row(Modifier.padding(16.dp)) {
+                    val painter = if (featuredBook.coverResourceId != null) {
+                        painterResource(id = featuredBook.coverResourceId!!)
+                    } else {
+                        rememberAsyncImagePainter(model = featuredBook.coverUri)
+                    }
+                    Image(
+                        painter = painter,
+                        contentDescription = featuredBook.title,
+                        modifier = Modifier.size(100.dp, 150.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(featuredBook.title, style = MaterialTheme.typography.titleMedium)
+                        Text(featuredBook.author, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Añadidos recientemente
+        Text("Añadidos recientemente", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(books.take(5)) { book ->
+                Card(
+                    onClick = { onOpenBook(book.id) },
+                    modifier = Modifier.width(150.dp)
+                ) {
+                    Column(Modifier.padding(8.dp)) {
+                        Text(book.title, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+                        Text(book.author, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Botones de navegación
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onExplore, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Book, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Explorar")
+            }
+            Button(onClick = onMyBooks, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Crear/Ver")
+            }
+            Button(onClick = onRatings, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Notas")
+            }
+        }
+        TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Cerrar sesión") }
     }
 }
-
-@Composable
-fun PlaceholderScreen(text: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text)
-    }
-}
-
-
-HAY QUE ARREGLAR QUE SE CRASHEA AL 

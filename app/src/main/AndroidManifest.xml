@@ -8,7 +8,6 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- 👇 Añadir esto -->
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -28,5 +27,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="com.canhub.cropper.CropImageActivity"
+            android:theme="@style/Base.Theme.AppCompat" />
     </application>
 </manifest>

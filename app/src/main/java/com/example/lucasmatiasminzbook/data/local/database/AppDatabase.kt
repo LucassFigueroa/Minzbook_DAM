@@ -8,12 +8,14 @@ import com.example.lucasmatiasminzbook.data.local.book.Book
 import com.example.lucasmatiasminzbook.data.local.book.BookDao
 import com.example.lucasmatiasminzbook.data.local.book.Review
 import com.example.lucasmatiasminzbook.data.local.book.ReviewDao
+import com.example.lucasmatiasminzbook.data.local.cart.CartDao
+import com.example.lucasmatiasminzbook.data.local.cart.CartItem
 import com.example.lucasmatiasminzbook.data.local.user.UserDao
 import com.example.lucasmatiasminzbook.data.local.user.UserEntity
 
 @Database(
-    entities = [UserEntity::class, Book::class, Review::class],
-    version = 3, // súbela si antes era 2
+    entities = [UserEntity::class, Book::class, Review::class, CartItem::class],
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -21,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun bookDao(): BookDao
     abstract fun reviewDao(): ReviewDao
+    abstract fun cartDao(): CartDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
