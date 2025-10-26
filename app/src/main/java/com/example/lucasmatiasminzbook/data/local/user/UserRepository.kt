@@ -2,11 +2,14 @@ package com.example.lucasmatiasminzbook.data.local.user
 
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
+import com.example.lucasmatiasminzbook.AuthLocalStore
 import com.example.lucasmatiasminzbook.data.local.database.AppDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withContext
 
-class UserRepository(context: Context) {
+class UserRepository(private val context: Context) {
     private val dao = AppDatabase.getInstance(context).userDao()
 
     suspend fun register(name: String, email: String, password: String): Result<UserEntity> =
@@ -47,4 +50,18 @@ class UserRepository(context: Context) {
                 Result.failure(e)
             }
         }
+
+    suspend fun getLoggedInUser(): UserEntity? = withContext(Dispatchers.IO) {
+        val email = AuthLocalStore.lastEmail(context) ?: return@withContext null
+        dao.findByEmail(email)
+    }
+
+    fun getLoggedInUserFlow(): Flow<UserEntity?> {
+        val email = AuthLocalStore.lastEmail(context)
+        return if (email == null) {
+            flowOf(null)
+        } else {
+            dao.findByEmailFlow(email)
+        }
+    }
 }

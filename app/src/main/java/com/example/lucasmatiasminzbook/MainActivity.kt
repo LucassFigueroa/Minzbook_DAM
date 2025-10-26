@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
@@ -38,7 +39,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -51,6 +51,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -60,6 +61,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.nav.Route
+import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
 import com.example.lucasmatiasminzbook.ui.auth.canUseBiometric
 import com.example.lucasmatiasminzbook.ui.auth.showBiometricPrompt
 import com.example.lucasmatiasminzbook.ui.cart.CartScreen
@@ -68,6 +70,8 @@ import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
 import com.example.lucasmatiasminzbook.ui.mybooks.MyBooksScreen
 import com.example.lucasmatiasminzbook.ui.profile.ProfileScreen
 import com.example.lucasmatiasminzbook.ui.ratings.RatingsScreen
+import com.example.lucasmatiasminzbook.ui.support.SupportScreen
+import com.example.lucasmatiasminzbook.ui.support.SupportViewModel
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -200,6 +204,7 @@ class MainActivity : FragmentActivity() {
                                     onExplore = { nav.navigate(Route.Catalog.path) },
                                     onMyBooks = { nav.navigate(Route.MyBooks.path) },
                                     onRatings = { nav.navigate(Route.Ratings.path) },
+                                    onSupport = { nav.navigate(Route.Support.path) },
                                     onLogout = {
                                         AuthLocalStore.clearSession(this@MainActivity)
                                         authViewModel.simulateLogout()
@@ -237,6 +242,10 @@ class MainActivity : FragmentActivity() {
                             }
                             composable(Route.Cart.path) {
                                 CartScreen(onBack = { nav.popBackStack() })
+                            }
+                            composable(Route.Support.path) {
+                                val supportViewModel: SupportViewModel = viewModel(factory = AppViewModelProvider.Factory)
+                                SupportScreen(viewModel = supportViewModel)
                             }
                         }
                     }
@@ -317,13 +326,11 @@ fun MinzbookMenu(
     onExplore: () -> Unit,
     onMyBooks: () -> Unit,
     onRatings: () -> Unit,
+    onSupport: () -> Unit,
     onLogout: () -> Unit,
     onOpenBook: (Long) -> Unit
 ) {
     val repo = BookRepository(LocalContext.current)
-    LaunchedEffect(Unit) {
-        repo.ensureSeeded()
-    }
     val books by repo.books().collectAsState(initial = emptyList())
     val featuredBook = remember(books) { books.randomOrNull() }
 
@@ -346,7 +353,7 @@ fun MinzbookMenu(
             ) {
                 Row(Modifier.padding(16.dp)) {
                     val painter = if (featuredBook.coverResourceId != null) {
-                        painterResource(id = featuredBook.coverResourceId!!)
+                        painterResource(id = featuredBook.coverResourceId)
                     } else {
                         rememberAsyncImagePainter(model = featuredBook.coverUri)
                     }
@@ -405,6 +412,11 @@ fun MinzbookMenu(
                 Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Notas")
+            }
+            Button(onClick = onSupport, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Soporte")
             }
         }
         TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Cerrar sesión") }

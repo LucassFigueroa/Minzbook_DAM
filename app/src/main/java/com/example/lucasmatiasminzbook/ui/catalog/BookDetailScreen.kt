@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +30,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -47,6 +50,8 @@ import com.example.lucasmatiasminzbook.AuthLocalStore
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.local.book.Review
 import com.example.lucasmatiasminzbook.data.local.cart.CartRepository
+import com.example.lucasmatiasminzbook.data.local.user.Role
+import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.ui.common.StarDisplay
 import com.example.lucasmatiasminzbook.ui.common.StarInput
 import kotlinx.coroutines.launch
@@ -63,17 +68,50 @@ fun BookDetailScreen(
     val ctx = LocalContext.current
     val repo = remember(ctx.applicationContext) { BookRepository(ctx.applicationContext) }
     val cartRepo = remember(ctx.applicationContext) { CartRepository(ctx.applicationContext) }
+    val userRepo = remember(ctx.applicationContext) { UserRepository(ctx.applicationContext) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val book by repo.book(bookId).collectAsState(initial = null)
     val avg by repo.averageForBook(bookId).collectAsState(initial = null)
     val reviews by repo.reviewsForBook(bookId).collectAsState(initial = emptyList())
+    val user by userRepo.getLoggedInUserFlow().collectAsState(initial = null)
 
     var comment by remember { mutableStateOf("") }
     var rating by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var sending by remember { mutableStateOf(false) }
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var itemToDelete by remember { mutableStateOf<Any?>(null) }
+
+    if (showDeleteDialog) {
+        var reason by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Confirmar eliminación") },
+            text = {
+                Column {
+                    Text("Por favor, escribe el motivo de la eliminación.")
+                    OutlinedTextField(value = reason, onValueChange = { reason = it }, label = { Text("Motivo") })
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (reason.isNotBlank()) {
+                        scope.launch {
+                            when (itemToDelete) {
+                                is Review -> repo.deleteReview(itemToDelete as Review)
+                                is Long -> repo.deleteBook(itemToDelete as Long)
+                            }
+                            showDeleteDialog = false
+                        }
+                    }
+                }) { Text("Eliminar") }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -83,6 +121,16 @@ fun BookDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    if (user?.role == Role.MODERATOR) {
+                        IconButton(onClick = {
+                            itemToDelete = bookId
+                            showDeleteDialog = true
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar libro")
+                        }
                     }
                 }
             )
@@ -220,7 +268,10 @@ fun BookDetailScreen(
                 }
             } else {
                 items(reviews, key = { it.createdAt }) { r ->
-                    ReviewItem(r)
+                    ReviewItem(r, canDelete = user?.role == Role.MODERATOR) {
+                        itemToDelete = r
+                        showDeleteDialog = true
+                    }
                     HorizontalDivider()
                 }
             }
@@ -274,7 +325,11 @@ fun BookDetailScreen(
 }
 
 @Composable
-private fun ReviewItem(r: Review) {
+private fun ReviewItem(
+    r: Review,
+    canDelete: Boolean,
+    onDelete: () -> Unit
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -284,6 +339,12 @@ private fun ReviewItem(r: Review) {
             Text(r.userName, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(8.dp))
             StarDisplay(rating = r.rating)
+            if (canDelete) {
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Eliminar reseña")
+                }
+            }
         }
         Spacer(Modifier.height(4.dp))
         Text(r.comment)

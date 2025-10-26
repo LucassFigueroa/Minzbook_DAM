@@ -25,7 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -39,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,10 +79,6 @@ fun CatalogScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        try { repo.ensureSeeded() } catch (_: Throwable) { /* no bloquear UI */ }
-    }
-
     var showCreate by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -116,7 +111,7 @@ fun CatalogScreen(
                     currency = currency,
                     onClick = { onOpenBook(book.id) }
                 )
-                Divider()
+                HorizontalDivider()
             }
         }
     }
@@ -273,7 +268,7 @@ private fun CreateBookDialog(
                         r
                     )
                 }
-            ) {
+            ) { 
                 Text(if (saving) "Guardando..." else "Crear")
             }
         },

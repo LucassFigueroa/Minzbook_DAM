@@ -13,4 +13,5 @@ sealed class Route(val path: String) {
     object Ratings : Route("ratings")
     object Profile : Route("profile")
     object Cart : Route("cart")
+    object Support : Route("support")
 }

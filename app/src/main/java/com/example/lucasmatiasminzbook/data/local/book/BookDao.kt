@@ -17,7 +17,7 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE creatorEmail = :email ORDER BY id DESC")
     fun getByUser(email: String): Flow<List<Book>>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(book: Book): Long
 
     @Query("SELECT COUNT(*) FROM books")
@@ -25,4 +25,7 @@ interface BookDao {
 
     @Query("DELETE FROM books")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM books WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

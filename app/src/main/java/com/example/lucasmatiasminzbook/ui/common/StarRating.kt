@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 
 private val Gold = Color(0xFFFFB300)
 
-/** SOLO visual: muestra N estrellas llenas de un total de 5. */
+
 @Composable
 fun StarDisplay(
     rating: Int,
@@ -38,7 +38,6 @@ fun StarDisplay(
     }
 }
 
-/** Interactiva: permite elegir 1..5 y actualiza onChange; útil al crear reseña. */
 @Composable
 fun StarInput(
     rating: Int,

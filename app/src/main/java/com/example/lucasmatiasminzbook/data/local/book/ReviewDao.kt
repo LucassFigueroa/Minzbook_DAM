@@ -1,6 +1,7 @@
 package com.example.lucasmatiasminzbook.data.local.book
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -17,7 +18,7 @@ interface ReviewDao {
     @Query("SELECT AVG(rating * 1.0) FROM reviews WHERE bookId = :bookId")
     fun averageForBook(bookId: Long): Flow<Double?>
 
-    // Todas las reseñas de un usuario (pantalla 'Calificaciones')
+    // Todas las reseñas de un usuario (pantalla \'Calificaciones\')
     @Query("SELECT * FROM reviews WHERE userEmail = :email ORDER BY createdAt DESC")
     fun forUser(email: String): Flow<List<Review>>
 
@@ -28,4 +29,10 @@ interface ReviewDao {
     // (Opcional) limpiar tabla en pruebas
     @Query("DELETE FROM reviews")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM reviews WHERE bookId = :bookId")
+    suspend fun deleteByBookId(bookId: Long)
+
+    @Delete
+    suspend fun delete(review: Review)
 }

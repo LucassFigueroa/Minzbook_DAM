@@ -84,7 +84,7 @@ private fun ReviewCard(r: Review) {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Libro #${r.bookId}", style = MaterialTheme.typography.labelLarge)
-            // ⭐ aquí mostramos la cantidad exacta de estrellas
+            // cantidad exacta de estrellas
             com.example.lucasmatiasminzbook.ui.common.StarDisplay(rating = r.rating, size = 20.dp)
             if (!r.comment.isNullOrBlank()) {
                 Text(r.comment!!, style = MaterialTheme.typography.bodyMedium)
