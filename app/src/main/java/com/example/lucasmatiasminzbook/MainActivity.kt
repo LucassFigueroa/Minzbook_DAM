@@ -62,9 +62,8 @@ import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.nav.Route
 import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
-import com.example.lucasmatiasminzbook.ui.auth.canUseBiometric
-import com.example.lucasmatiasminzbook.ui.auth.showBiometricPrompt
 import com.example.lucasmatiasminzbook.ui.cart.CartScreen
+import com.example.lucasmatiasminzbook.ui.checkout.CheckoutScreen
 import com.example.lucasmatiasminzbook.ui.catalog.BookDetailScreen
 import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
 import com.example.lucasmatiasminzbook.ui.mybooks.MyBooksScreen
@@ -150,22 +149,9 @@ class MainActivity : FragmentActivity() {
                                     },
                                     onCredentialsOk = {
                                         val name = AuthLocalStore.lastName(applicationContext) ?: "Usuario"
-                                        if (canUseBiometric(this@MainActivity)) {
-                                            showBiometricPrompt(
-                                                activity = this@MainActivity,
-                                                onSuccess = {
-                                                    authViewModel.simulateLogin(name)
-                                                    nav.navigate(Route.Menu.path) {
-                                                        popUpTo(Route.Home.path) { inclusive = true }
-                                                    }
-                                                },
-                                                onError = {}
-                                            )
-                                        } else {
-                                            authViewModel.simulateLogin(name)
-                                            nav.navigate(Route.Menu.path) {
-                                                popUpTo(Route.Home.path) { inclusive = true }
-                                            }
+                                        authViewModel.simulateLogin(name)
+                                        nav.navigate(Route.Menu.path) {
+                                            popUpTo(Route.Home.path) { inclusive = true }
                                         }
                                     },
                                     rememberInitial = AuthLocalStore.isRememberMe(applicationContext),
@@ -241,11 +227,18 @@ class MainActivity : FragmentActivity() {
                                 RatingsScreen(onBack = { nav.popBackStack() })
                             }
                             composable(Route.Cart.path) {
-                                CartScreen(onBack = { nav.popBackStack() })
+                                CartScreen(onBack = { nav.popBackStack() }, onCheckout = { nav.navigate(Route.Checkout.path) })
                             }
                             composable(Route.Support.path) {
                                 val supportViewModel: SupportViewModel = viewModel(factory = AppViewModelProvider.Factory)
                                 SupportScreen(viewModel = supportViewModel)
+                            }
+                            composable(Route.Checkout.path) {
+                                CheckoutScreen(onBack = { nav.popBackStack() }, onPaymentSuccess = {
+                                    nav.navigate(Route.Menu.path) {
+                                        popUpTo(Route.Cart.path) { inclusive = true }
+                                    }
+                                })
                             }
                         }
                     }
@@ -293,7 +286,7 @@ fun MinzbookHome(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "Bienvenido a Minzbook, una aplicacion donde podras comprar nuevos libros, arrendar o incluso puedes hacer libros tu mismo!, esperamos que disfrutes tu experiencia \uD83D\uDC9A\uD83D\uDC9A\uD83D\uDC9A!",
+                            "Bienvenido a Minzbook, una aplicacion donde podras comprar nuevos libros, arrendar o incluso puedes hacer libros tu mismo!, esperamos que disfrutes tu experiencia 🥑📗✅!",
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.titleMedium
                         )

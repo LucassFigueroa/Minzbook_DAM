@@ -17,13 +17,13 @@ fun canUseBiometric(ctx: Context): Boolean {
 
 fun showBiometricPrompt(
     activity: FragmentActivity, // 👈 Cambiado a FragmentActivity
-    title: String = "Autentícate con huella",
+    title: String = "Autentíficate con huella",
     onSuccess: () -> Unit,
     onError: (String) -> Unit
 ) {
     val executor = ContextCompat.getMainExecutor(activity)
     val prompt = BiometricPrompt(
-        activity, // 👈 ahora coincide con el constructor válido
+        activity, // ahora coincide con el constructor válido
         executor,
         object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {

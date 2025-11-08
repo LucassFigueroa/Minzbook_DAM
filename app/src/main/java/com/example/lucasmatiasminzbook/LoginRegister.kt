@@ -3,11 +3,13 @@ package com.example.lucasmatiasminzbook
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -19,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,14 +31,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
+
+// Este archivo contiene los composables para las pantallas de Login y Registro.
 
 /* ============ LOGIN ============ */
 
@@ -43,9 +49,7 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     onBack: () -> Unit,
     onGoRegister: () -> Unit,
-    // valida credenciales; devuelve null si OK o mensaje si falla
     onTryLogin: suspend (email: String, password: String) -> String?,
-    // se llama SOLO si credenciales OK → aquí disparas el BiometricPrompt desde MainActivity
     onCredentialsOk: () -> Unit,
     rememberInitial: Boolean,
     onToggleRemember: (Boolean) -> Unit
@@ -59,8 +63,8 @@ fun LoginScreen(
 
     val scope = rememberCoroutineScope()
 
-    val emailValid = email.endsWith("@gmail.com")
-    val passValid = password.length >= 7
+    val emailValid = email.contains("@") && email.contains(".")
+    val passValid = password.length >= 5
     val canSubmit = emailValid && passValid && !loading
 
     Column(
@@ -74,12 +78,12 @@ fun LoginScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it.trim(); error = null },
-            label = { Text("Correo (solo @gmail.com)") },
+            label = { Text("Correo electrónico") },
             singleLine = true,
             isError = (email.isNotEmpty() && !emailValid) || (error != null),
             supportingText = {
                 when {
-                    email.isNotEmpty() && !emailValid -> Text("Correo inválido (debe terminar en @gmail.com)")
+                    email.isNotEmpty() && !emailValid -> Text("Correo no válido")
                     error != null -> Text(error!!)
                 }
             },
@@ -93,12 +97,12 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it; error = null },
-            label = { Text("Contraseña (mín. 7)") },
+            label = { Text("Contraseña") },
             singleLine = true,
             isError = (password.isNotEmpty() && !passValid) || (error != null),
             supportingText = {
                 when {
-                    password.isNotEmpty() && !passValid -> Text("La contraseña debe tener al menos 7 caracteres")
+                    password.isNotEmpty() && !passValid -> Text("La contraseña es demasiado corta")
                     error != null -> Text(error!!)
                 }
             },
@@ -117,7 +121,6 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Mantener sesión
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
             Checkbox(checked = rememberMe, onCheckedChange = {
                 rememberMe = it
@@ -133,7 +136,7 @@ fun LoginScreen(
                     val err = onTryLogin(email, password)
                     loading = false
                     if (err == null) {
-                        onCredentialsOk() // → aquí muestras el prompt biométrico (MainActivity)
+                        onCredentialsOk()
                     } else {
                         error = err
                     }
@@ -157,7 +160,6 @@ fun RegisterScreen(
     onTryRegister: suspend (name: String, email: String, password: String, photoUri: String?) -> String?,
     onRegistered: () -> Unit
 ) {
-    val ctx = LocalContext.current
     var name by rememberSaveable { mutableStateOf("") }
     var lastName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
@@ -172,15 +174,15 @@ fun RegisterScreen(
 
     val scope = rememberCoroutineScope()
 
-    // Galería (Photo Picker)
     val pickMedia = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         photoUri = uri?.toString()
     }
 
-    val emailValid = email.endsWith("@gmail.com")
-    val passValid = password.length >= 7 && password == pass2
+    val specialChars = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+    val emailValid = email.contains("@") && email.contains(".")
+    val passValid = password.length >= 5 && password.any(Char::isDigit) && password.any(Char::isUpperCase) && password.any { it in specialChars } && password == pass2
     val nameValid = name.isNotBlank() && lastName.isNotBlank()
     val canSubmit = emailValid && passValid && nameValid && !loading
 
@@ -191,6 +193,17 @@ fun RegisterScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Crear cuenta", style = MaterialTheme.typography.titleLarge)
+
+        if (photoUri != null) {
+            Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
+                Image(
+                    painter = rememberAsyncImagePainter(photoUri),
+                    contentDescription = "Foto de perfil seleccionada",
+                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
 
         OutlinedTextField(
             value = name,
@@ -211,12 +224,12 @@ fun RegisterScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it.trim(); error = null },
-            label = { Text("Correo (solo @gmail.com)") },
+            label = { Text("Correo electrónico") },
             singleLine = true,
             isError = (email.isNotEmpty() && !emailValid) || (error != null),
             supportingText = {
                 when {
-                    email.isNotEmpty() && !emailValid -> Text("Correo inválido (debe terminar en @gmail.com)")
+                    email.isNotEmpty() && !emailValid -> Text("Correo no válido")
                     error != null -> Text(error!!)
                 }
             },
@@ -230,9 +243,10 @@ fun RegisterScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it; error = null },
-            label = { Text("Contraseña (mín. 7)") },
+            label = { Text("Contraseña") },
             singleLine = true,
-            isError = password.isNotEmpty() && password.length < 7,
+            isError = password.isNotEmpty() && (password.length < 5 || !password.any(Char::isDigit) || !password.any(Char::isUpperCase) || !password.any { it in specialChars }),
+            supportingText = { Text("5+ caracteres, 1 mayúscula, 1 número, 1 símbolo") },
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 val image = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
@@ -248,6 +262,7 @@ fun RegisterScreen(
             label = { Text("Repetir contraseña") },
             singleLine = true,
             isError = pass2.isNotEmpty() && pass2 != password,
+            supportingText = { if (pass2.isNotEmpty() && pass2 != password) Text("Las contraseñas no coinciden") else Text("") },
             visualTransformation = if (showPassword2) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 val image = if (showPassword2) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
@@ -258,11 +273,10 @@ fun RegisterScreen(
             }
         )
 
-        // Foto
         Row(Modifier.fillMaxWidth()) {
-            Button(onClick = {
-                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Text(if (photoUri == null) "Elegir foto (galería)" else "Cambiar foto") }
+            Button(onClick = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { 
+                Text(if (photoUri == null) "Elegir foto (galería)" else "Cambiar foto") 
+            }
         }
 
         if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
@@ -276,7 +290,7 @@ fun RegisterScreen(
                     val err = onTryRegister(displayName, email, password, photoUri)
                     loading = false
                     if (err == null) {
-                        onRegistered() // → vuelve a Login
+                        onRegistered()
                     } else {
                         error = err
                     }

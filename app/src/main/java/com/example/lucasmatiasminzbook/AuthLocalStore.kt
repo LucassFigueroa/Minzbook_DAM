@@ -5,12 +5,20 @@ import android.net.Uri
 
 object AuthLocalStore {
 
+    // Nombre del archivo de preferencias compartidas donde se guardan los datos.
     private const val PREFS = "auth_local_store"
+
+    // Clave para guardar el email del último usuario que inició sesión.
     private const val KEY_LAST_EMAIL = "last_email"
+
+    // Clave para guardar el nombre visible del último usuario.
     private const val KEY_LAST_NAME = "last_name"
+
+    // Clave para guardar la URI de la foto de perfil como String.
     private const val KEY_PROFILE_PHOTO_URI = "profile_photo_uri"
+
+    // Clave para guardar la preferencia de "Mantener sesión iniciada".
     private const val KEY_REMEMBER_ME = "remember_me"
-    private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
 
     fun setSession(context: Context, email: String, visibleName: String) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
@@ -57,14 +65,4 @@ object AuthLocalStore {
     fun isRememberMe(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(KEY_REMEMBER_ME, false)
-
-    fun setBiometricEnabled(context: Context, value: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_BIOMETRIC_ENABLED, value)
-            .apply()
-    }
-
-    fun isBiometricEnabled(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean(KEY_BIOMETRIC_ENABLED, false)
 }

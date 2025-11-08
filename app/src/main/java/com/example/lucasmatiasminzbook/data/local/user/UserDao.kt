@@ -14,6 +14,6 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     fun findByEmailFlow(email: String): Flow<UserEntity?>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE) // <-- Cambiado a IGNORE
+    @Insert(onConflict = OnConflictStrategy.IGNORE) // <
     suspend fun insert(user: UserEntity)
 }

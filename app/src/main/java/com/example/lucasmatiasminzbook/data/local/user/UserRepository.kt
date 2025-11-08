@@ -15,11 +15,15 @@ class UserRepository(private val context: Context) {
     suspend fun register(name: String, email: String, password: String): Result<UserEntity> =
         withContext(Dispatchers.IO) {
             try {
-                if (!email.endsWith("@gmail.com")) {
-                    return@withContext Result.failure(IllegalArgumentException("Correo inválido"))
+                // Validación de email y contraseña mejorada
+                if (!email.contains("@") || !email.contains(".")) {
+                    return@withContext Result.failure(IllegalArgumentException("Correo no válido"))
                 }
-                if (password.length < 7) {
-                    return@withContext Result.failure(IllegalArgumentException("Contraseña demasiado corta"))
+
+                val specialChars = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+                val hasSpecialChar = password.any { it in specialChars }
+                if (password.length < 5 || !password.any(Char::isDigit) || !password.any(Char::isUpperCase) || !hasSpecialChar) {
+                    return@withContext Result.failure(IllegalArgumentException("Contraseña: 5+ caracteres, 1 mayúscula, 1 número y 1 carácter especial."))
                 }
 
                 val existing = dao.findByEmail(email)

@@ -2,7 +2,6 @@ package com.example.lucasmatiasminzbook.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -59,7 +58,7 @@ fun MinzbookTheme(
     MaterialTheme(
         colorScheme = colors,
         shapes = MinzShapes,
-        typography = Typography(), // deja tu Typography si quieres
+        typography = Typography, // <-- ¡Solucionado!
         content = content
     )
 }

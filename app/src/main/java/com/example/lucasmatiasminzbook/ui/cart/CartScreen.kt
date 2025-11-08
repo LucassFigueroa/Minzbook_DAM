@@ -38,7 +38,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CartScreen(onBack: () -> Unit, vm: CartViewModel = viewModel()) {
+fun CartScreen(onBack: () -> Unit, onCheckout: () -> Unit, vm: CartViewModel = viewModel()) {
     val items by vm.cartItems.collectAsState(initial = emptyList())
 
     val currency = remember {
@@ -95,7 +95,10 @@ fun CartScreen(onBack: () -> Unit, vm: CartViewModel = viewModel()) {
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(8.dp))
-                    ElevatedButton(onClick = { /* TODO pago */ }, modifier = Modifier.fillMaxWidth()) {
+                    ElevatedButton(onClick = {
+                        onCheckout()
+                        vm.clearCart()
+                    }, modifier = Modifier.fillMaxWidth()) {
                         Text("Proceder al pago")
                     }
                 }

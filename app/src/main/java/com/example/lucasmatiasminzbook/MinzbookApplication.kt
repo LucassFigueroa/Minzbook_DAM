@@ -30,9 +30,9 @@ class MinzbookApplication : Application() {
             val reviewDao = db.reviewDao()
 
             // Usuarios
-            userDao.insert(UserEntity(name = "Soporte", email = "soporte@gmail.com", password = "1234567", role = Role.SUPPORT))
-            userDao.insert(UserEntity(name = "Moderador", email = "mod@gmail.com", password = "1234567", role = Role.MODERATOR))
-            userDao.insert(UserEntity(name = "Lucas", email = "luc@gmail.com", password = "1234567", role = Role.USER))
+            userDao.insert(UserEntity(name = "Soporte", email = "soporte@gmail.com", password = "!Support1", role = Role.SUPPORT))
+            userDao.insert(UserEntity(name = "Moderador", email = "mod@gmail.com", password = "!Moderator1", role = Role.MODERATOR))
+            userDao.insert(UserEntity(name = "Lucas", email = "luc@gmail.com", password = "!Lucas123", role = Role.USER))
 
             // Libros y Reseñas
             if (bookDao.count() == 0) {

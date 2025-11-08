@@ -7,11 +7,12 @@ sealed class Route(val path: String) {
 
     object Menu : Route("menu")
     object Catalog : Route("catalog")
-    object BookDetail : Route("book")         // base de la ruta de detalle
+    object BookDetail : Route("book")
 
     object MyBooks : Route("mybooks")
     object Ratings : Route("ratings")
     object Profile : Route("profile")
     object Cart : Route("cart")
     object Support : Route("support")
+    object Checkout : Route("checkout")
 }

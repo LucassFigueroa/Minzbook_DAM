@@ -1,7 +1,5 @@
 package com.example.lucasmatiasminzbook
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,14 +21,5 @@ class AuthViewModel : ViewModel() {
 
     fun simulateLogout() {
         _uiState.value = AuthUiState()
-    }
-
-    // ---- Flag para habilitar biometría (huella/rostro) ----
-    private val _biometricEnabled = MutableLiveData(false)
-    val biometricEnabled: LiveData<Boolean> = _biometricEnabled
-
-    fun enableBiometricLogin(enabled: Boolean) {
-        _biometricEnabled.value = enabled
-        // Si quieres, guarda este flag en SharedPreferences/Room
     }
 }

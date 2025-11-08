@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private val Gold = Color(0xFFFFB300)
+private val Gold = Color(0xFF053D37)
 
 
 @Composable

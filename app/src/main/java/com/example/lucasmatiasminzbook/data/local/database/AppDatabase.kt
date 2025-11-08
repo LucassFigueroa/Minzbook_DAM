@@ -12,12 +12,13 @@ import com.example.lucasmatiasminzbook.data.local.cart.CartDao
 import com.example.lucasmatiasminzbook.data.local.cart.CartItem
 import com.example.lucasmatiasminzbook.data.local.ticket.Ticket
 import com.example.lucasmatiasminzbook.data.local.ticket.TicketDao
+import com.example.lucasmatiasminzbook.data.local.ticket.TicketMessage
 import com.example.lucasmatiasminzbook.data.local.user.UserDao
 import com.example.lucasmatiasminzbook.data.local.user.UserEntity
 
 @Database(
-    entities = [UserEntity::class, Book::class, Review::class, CartItem::class, Ticket::class],
-    version = 23, // Forzar la recreación de la base de datos
+    entities = [UserEntity::class, Book::class, Review::class, CartItem::class, Ticket::class, TicketMessage::class],
+    version = 25, // Forzar la recreación de la base de datos
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

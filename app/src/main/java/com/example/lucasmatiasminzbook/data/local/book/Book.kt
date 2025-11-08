@@ -11,7 +11,7 @@ data class Book(
     val description: String,
     val coverUri: String? = null,      // URI de la portada (galería/cámara)
     val coverResourceId: Int? = null, // ID del recurso de portada (precargado)
-    val purchasePrice: Int,     // precio compra (ej: 12000)
-    val rentPrice: Int,          // precio arriendo semana (ej: 6800)
-    val creatorEmail: String? = null // Email del usuario que creó el libro
+    val purchasePrice: Int,     // precio compra
+    val rentPrice: Int,          // precio arriendo semana
+    val creatorEmail: String? = null // gmail del usuario que creó el libro
 )
