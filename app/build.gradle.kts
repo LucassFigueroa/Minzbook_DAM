@@ -54,6 +54,7 @@ dependencies {
 
     // ===== Compose BOM (1.6.x estable y alineado) =====
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    implementation(libs.androidx.material3)
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
 
     // Compose (sin versiones explícitas; las toma del BOM)

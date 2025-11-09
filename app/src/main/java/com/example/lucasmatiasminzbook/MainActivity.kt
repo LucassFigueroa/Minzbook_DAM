@@ -26,9 +26,12 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +66,7 @@ import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.nav.Route
 import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
 import com.example.lucasmatiasminzbook.ui.cart.CartScreen
+import com.example.lucasmatiasminzbook.ui.cart.CartViewModel
 import com.example.lucasmatiasminzbook.ui.checkout.CheckoutScreen
 import com.example.lucasmatiasminzbook.ui.catalog.BookDetailScreen
 import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
@@ -73,7 +77,7 @@ import com.example.lucasmatiasminzbook.ui.support.SupportScreen
 import com.example.lucasmatiasminzbook.ui.support.SupportViewModel
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : FragmentActivity() {
 
     private val authViewModel: AuthViewModel by viewModels()
@@ -85,6 +89,8 @@ class MainActivity : FragmentActivity() {
             MinzbookTheme {
                 val ui by authViewModel.uiState.collectAsState()
                 val nav = rememberNavController()
+                val cartViewModel: CartViewModel = viewModel()
+                val cartItems by cartViewModel.cartItems.collectAsState(initial = emptyList())
 
                 Scaffold(
                     topBar = {
@@ -100,8 +106,16 @@ class MainActivity : FragmentActivity() {
                                     }
                                 },
                                 actions = {
-                                    IconButton(onClick = { nav.navigate(Route.Cart.path) }) {
-                                        Icon(Icons.Filled.ShoppingCart, contentDescription = "Carrito", tint = Color.White)
+                                    BadgedBox(
+                                        badge = {
+                                            if (cartItems.isNotEmpty()) {
+                                                Badge { Text(cartItems.size.toString()) }
+                                            }
+                                        }
+                                    ) {
+                                        IconButton(onClick = { nav.navigate(Route.Cart.path) }) {
+                                            Icon(Icons.Filled.ShoppingCart, contentDescription = "Carrito", tint = Color.White)
+                                        }
                                     }
                                     IconButton(onClick = { nav.navigate(Route.Profile.path) }) {
                                         Icon(Icons.Filled.AccountCircle, contentDescription = "Perfil", tint = Color.White)
@@ -275,9 +289,7 @@ fun MinzbookHome(
                 )
                 Surface(
                     shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 2.dp,
-                    shadowElevation = 4.dp
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Column(
                         modifier = Modifier
@@ -342,11 +354,12 @@ fun MinzbookMenu(
             Card(
                 onClick = { onOpenBook(featuredBook.id) },
                 modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Row(Modifier.padding(16.dp)) {
                     val painter = if (featuredBook.coverResourceId != null) {
-                        painterResource(id = featuredBook.coverResourceId)
+                        painterResource(id = featuredBook.coverResourceId!!) // Es seguro por el if
                     } else {
                         rememberAsyncImagePainter(model = featuredBook.coverUri)
                     }
@@ -377,6 +390,7 @@ fun MinzbookMenu(
             items(books.take(5)) { book ->
                 Card(
                     onClick = { onOpenBook(book.id) },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.width(150.dp)
                 ) {
                     Column(Modifier.padding(8.dp)) {

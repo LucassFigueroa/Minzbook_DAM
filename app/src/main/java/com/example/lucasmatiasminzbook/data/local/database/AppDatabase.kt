@@ -10,6 +10,8 @@ import com.example.lucasmatiasminzbook.data.local.book.Review
 import com.example.lucasmatiasminzbook.data.local.book.ReviewDao
 import com.example.lucasmatiasminzbook.data.local.cart.CartDao
 import com.example.lucasmatiasminzbook.data.local.cart.CartItem
+import com.example.lucasmatiasminzbook.data.local.purchase.Purchase
+import com.example.lucasmatiasminzbook.data.local.purchase.PurchaseDao
 import com.example.lucasmatiasminzbook.data.local.ticket.Ticket
 import com.example.lucasmatiasminzbook.data.local.ticket.TicketDao
 import com.example.lucasmatiasminzbook.data.local.ticket.TicketMessage
@@ -17,8 +19,8 @@ import com.example.lucasmatiasminzbook.data.local.user.UserDao
 import com.example.lucasmatiasminzbook.data.local.user.UserEntity
 
 @Database(
-    entities = [UserEntity::class, Book::class, Review::class, CartItem::class, Ticket::class, TicketMessage::class],
-    version = 25, // Forzar la recreación de la base de datos
+    entities = [UserEntity::class, Book::class, Review::class, CartItem::class, Ticket::class, TicketMessage::class, Purchase::class],
+    version = 27, // Forzar la recreación de la base de datos
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
     abstract fun cartDao(): CartDao
     abstract fun ticketDao(): TicketDao
+    abstract fun purchaseDao(): PurchaseDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null

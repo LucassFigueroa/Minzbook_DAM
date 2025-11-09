@@ -9,7 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,19 +81,18 @@ fun RatingsScreen(
 
 @Composable
 private fun ReviewCard(r: Review) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Libro #${r.bookId}", style = MaterialTheme.typography.labelLarge)
             // cantidad exacta de estrellas
             com.example.lucasmatiasminzbook.ui.common.StarDisplay(rating = r.rating, size = 20.dp)
             if (!r.comment.isNullOrBlank()) {
-                Text(r.comment!!, style = MaterialTheme.typography.bodyMedium)
+                Text(r.comment, style = MaterialTheme.typography.bodyMedium)
             }
             if (!r.userName.isNullOrBlank()) {
                 Text(
                     "por ${r.userName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }

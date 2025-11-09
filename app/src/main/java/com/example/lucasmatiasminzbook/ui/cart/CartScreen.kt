@@ -14,7 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -95,11 +96,14 @@ fun CartScreen(onBack: () -> Unit, onCheckout: () -> Unit, vm: CartViewModel = v
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(8.dp))
-                    ElevatedButton(onClick = {
-                        onCheckout()
-                        vm.clearCart()
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Proceder al pago")
+                    Card(
+                        onClick = onCheckout, 
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Text("Proceder al pago", modifier = Modifier.padding(16.dp))
                     }
                 }
             }

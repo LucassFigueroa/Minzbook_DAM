@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -82,8 +83,7 @@ private fun TicketListScreen(viewModel: SupportViewModel) {
                     uiState.currentUser?.let {
                         Text(
                             "Enviando como: ${it.name} (${it.email})",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                     OutlinedTextField(value = subject, onValueChange = { subject = it }, label = { Text("Asunto") })
@@ -109,7 +109,13 @@ private fun TicketListScreen(viewModel: SupportViewModel) {
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(uiState.tickets) { ticket ->
-                Card(onClick = { viewModel.selectTicket(ticket.id) }, modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    onClick = { viewModel.selectTicket(ticket.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(ticket.subject, style = MaterialTheme.typography.titleMedium)
                         Text(if (ticket.isResolved) "Resuelto" else "Pendiente")
