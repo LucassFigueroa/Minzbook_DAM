@@ -8,24 +8,27 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BookDao {
-    @Query("SELECT * FROM books ORDER BY id DESC")
+
+    @Query("SELECT * FROM books")
     fun getAll(): Flow<List<Book>>
 
-    @Query("SELECT * FROM books WHERE id = :id LIMIT 1")
+    @Query("SELECT * FROM books WHERE id = :id")
     fun getById(id: Long): Flow<Book?>
 
-    @Query("SELECT * FROM books WHERE creatorEmail = :email ORDER BY id DESC")
+    @Query("SELECT * FROM books WHERE creatorEmail = :email")
     fun getByUser(email: String): Flow<List<Book>>
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert
     suspend fun insert(book: Book): Long
 
-    @Query("SELECT COUNT(*) FROM books")
-    suspend fun count(): Int
 
     @Query("DELETE FROM books")
-    suspend fun deleteAll()
+    suspend fun clear()
 
     @Query("DELETE FROM books WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(books: List<Book>)
+
 }

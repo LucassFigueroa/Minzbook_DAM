@@ -55,6 +55,7 @@ dependencies {
     // ===== Compose BOM (1.6.x estable y alineado) =====
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
 
     // Compose (sin versiones explícitas; las toma del BOM)
@@ -94,4 +95,14 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    // Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    // OkHttp logging (para ver las llamadas en Logcat)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }
