@@ -16,4 +16,7 @@ interface ReviewApiService {
     suspend fun createReview(
         @Body request: CreateReviewRequest
     ): ReviewDto
+    @GET("reviews/user/{userId}")
+    suspend fun getReviewsByUser(@Path("userId") userId: Long): List<ReviewResponseDto>
 }
+

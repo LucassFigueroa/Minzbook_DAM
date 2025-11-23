@@ -1,69 +1,52 @@
 package com.example.lucasmatiasminzbook.ui.ratings
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.example.lucasmatiasminzbook.network.ApiClient
+import com.example.lucasmatiasminzbook.network.ReviewApi
+import com.example.lucasmatiasminzbook.network.ReviewResponseDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-data class ReviewUiModel(
-    val id: Long,
-    val rating: Int,
-    val comment: String
-)
-
-data class RatingsUiState(
-    val isLoading: Boolean = false,
-    val reviews: List<ReviewUiModel> = emptyList(),
-    val reviewSent: Boolean = false,
-    val error: String? = null
-)
-
-class RatingsViewModel : ViewModel() {
+class RatingsViewModel(
+    private val api: ReviewApi = ApiClient.reviewApi
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RatingsUiState())
     val uiState: StateFlow<RatingsUiState> = _uiState
 
-    // Aquí después puedes conectar con tu microservicio de reviews
-    fun createReview(
-        userId: Long,
-        rating: Int,
-        comment: String
-    ) {
+    fun loadUserRatings(userId: Long) {
+        _uiState.value = RatingsUiState(isLoading = true)
+
         viewModelScope.launch {
             try {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = true,
-                    error = null
-                )
+                val dtos: List<ReviewResponseDto> = api.getReviewsByUser(userId)
 
-                // Simulación de llamada remota
-                delay(500)
+                val mapped: List<UserReviewUi> = dtos.map { dto: ReviewResponseDto ->
+                    UserReviewUi(
+                        id = dto.id,
+                        bookId = dto.bookId,
+                        rating = dto.rating,
+                        comment = dto.comment,
+                        fecha = dto.fechaCreacion
+                    )
+                }
 
-                val newReview = ReviewUiModel(
-                    id = System.currentTimeMillis(),
-                    rating = rating,
-                    comment = comment
-                )
-
-                val updatedList = _uiState.value.reviews + newReview
-
-                _uiState.value = _uiState.value.copy(
+                _uiState.value = RatingsUiState(
                     isLoading = false,
-                    reviews = updatedList,
-                    reviewSent = true
+                    reviews = mapped,
+                    errorMessage = null
                 )
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
+                Log.e("RatingsViewModel", "Error al cargar reseñas", e)
+                _uiState.value = RatingsUiState(
                     isLoading = false,
-                    error = e.message ?: "Error al enviar la reseña"
+                    reviews = emptyList(),
+                    errorMessage = "No se pudieron cargar tus reseñas"
                 )
             }
         }
-    }
-
-    fun clearReviewSentFlag() {
-        _uiState.value = _uiState.value.copy(reviewSent = false)
     }
 }

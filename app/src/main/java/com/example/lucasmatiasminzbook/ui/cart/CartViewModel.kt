@@ -1,26 +1,25 @@
 package com.example.lucasmatiasminzbook.ui.cart
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.lucasmatiasminzbook.data.local.cart.CartRepository
-import kotlinx.coroutines.launch
+import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import com.example.lucasmatiasminzbook.data.local.book.Book
 
-class CartViewModel(application: Application) : AndroidViewModel(application) {
+class CartViewModel : ViewModel() {
 
-    private val repository = CartRepository(application)
+    private val _cartItems = MutableStateFlow<List<Book>>(emptyList())
+    val cartItems: StateFlow<List<Book>> = _cartItems
 
-    val cartItems = repository.getCartItems()
-
-    fun clearCart() {
-        viewModelScope.launch {
-            repository.clearCart()
-        }
+    fun addToCart(book: Book) {
+        _cartItems.value = _cartItems.value + book
     }
 
-    fun deleteFromCart(itemId: Long) {
-        viewModelScope.launch {
-            repository.delete(itemId)
-        }
+    fun removeFromCart(book: Book) {
+        _cartItems.value = _cartItems.value - book
+    }
+
+    // 🧹 Vaciar carrito después de la compra
+    fun clearCart() {
+        _cartItems.value = emptyList()
     }
 }

@@ -1,5 +1,5 @@
 package com.example.lucasmatiasminzbook.ui.catalog
-import com.example.lucasmatiasminzbook.data.remote.review.ReviewRemoteRepository
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,10 +51,10 @@ import coil.compose.AsyncImage
 import com.example.lucasmatiasminzbook.AuthLocalStore
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.local.book.Review
-import com.example.lucasmatiasminzbook.data.local.cart.CartRepository
 import com.example.lucasmatiasminzbook.data.local.user.Role
 import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
+import com.example.lucasmatiasminzbook.ui.cart.CartViewModel
 import com.example.lucasmatiasminzbook.ui.common.StarDisplay
 import com.example.lucasmatiasminzbook.ui.common.StarInput
 import kotlinx.coroutines.Dispatchers
@@ -68,17 +68,16 @@ import java.util.Locale
 @Composable
 fun BookDetailScreen(
     bookId: Long,
-    userId: Long?,            // 👈 viene del AuthViewModel
+    userId: Long?,
     onBack: () -> Unit,
-    isAdmin: Boolean
+    isAdmin: Boolean,
+    cartViewModel: CartViewModel
 ) {
     val ctx = LocalContext.current
     val repo = remember(ctx.applicationContext) { BookRepository(ctx.applicationContext) }
-    val cartRepo = remember(ctx.applicationContext) { CartRepository(ctx.applicationContext) }
     val userRepo = remember(ctx.applicationContext) { UserRepository(ctx.applicationContext) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val reviewRemoteRepo = remember { ReviewRemoteRepository() }
 
     val book by repo.book(bookId).collectAsState(initial = null)
     val avg by repo.averageForBook(bookId).collectAsState(initial = null)
@@ -118,7 +117,7 @@ fun BookDetailScreen(
                                     is Review -> repo.deleteReview(item)
                                     is Long -> {
                                         deleteBookFromMicroservice(item)
-                                        onBack() // Volver atrás después de borrar
+                                        onBack()
                                     }
                                 }
                             } catch (e: Exception) {
@@ -157,7 +156,7 @@ fun BookDetailScreen(
                             itemToDelete = bookId
                             showDeleteDialog = true
                         }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar libro")
+                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar libro")
                         }
                     }
                 }
@@ -170,7 +169,9 @@ fun BookDetailScreen(
                     .fillMaxSize()
                     .padding(padding),
                 contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
+            ) {
+                CircularProgressIndicator()
+            }
             return@Scaffold
         }
 
@@ -234,7 +235,7 @@ fun BookDetailScreen(
                 }
             }
 
-            // ===== Título, autor, compra/arriendo y promedio =====
+            // ===== Título, autor y compra/arriendo =====
             item {
                 Text(
                     book!!.title,
@@ -251,33 +252,25 @@ fun BookDetailScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = {
                         scope.launch {
-                            cartRepo.addToCart(
-                                book!!.id,
-                                book!!.title,
-                                book!!.author,
-                                book!!.purchasePrice,
-                                "Compra"
-                            )
+                            cartViewModel.addToCart(book!!)
                             snackbarHostState.showSnackbar(
-                                "'${book!!.title}' agregado para comprar"
+                                "'${book!!.title}' agregado al carrito"
                             )
                         }
-                    }) { Text("Compra: ${currency.format(book!!.purchasePrice)}") }
+                    }) {
+                        Text("Compra: ${currency.format(book!!.purchasePrice)}")
+                    }
 
                     Button(onClick = {
                         scope.launch {
-                            cartRepo.addToCart(
-                                book!!.id,
-                                book!!.title,
-                                book!!.author,
-                                book!!.rentPrice,
-                                "Arriendo"
-                            )
+                            cartViewModel.addToCart(book!!)
                             snackbarHostState.showSnackbar(
-                                "'${book!!.title}' agregado para arrendar"
+                                "'${book!!.title}' agregado para arriendo"
                             )
                         }
-                    }) { Text("Arriendo 1 semana: ${currency.format(book!!.rentPrice)}") }
+                    }) {
+                        Text("Arriendo 1 semana: ${currency.format(book!!.rentPrice)}")
+                    }
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -321,7 +314,7 @@ fun BookDetailScreen(
             } else {
                 items(reviews, key = { it.createdAt }) { r ->
                     ReviewItem(
-                        r,
+                        review = r,
                         canDelete = user?.role == Role.MODERATOR
                     ) {
                         itemToDelete = r
@@ -387,32 +380,14 @@ fun BookDetailScreen(
                                             if (storedName.isNotBlank()) storedName
                                             else "Usuario"
 
-                                        // 1) Guardar en base local (Room)
+                                        // Guardar reseña en base local
                                         repo.addReview(
-                                            bookId,
-                                            effectiveEmail,
-                                            effectiveName,
-                                            rating,
-                                            comment.trim()
+                                            bookId = bookId,
+                                            userEmail = effectiveEmail,
+                                            userName = effectiveName,
+                                            rating = rating,
+                                            comment = comment.trim()
                                         )
-
-                                        // 2) Guardar en microservicio (REMOTO)
-                                        if (userId != null) {
-                                            try {
-                                                reviewRemoteRepo.createReview(
-                                                    userId = userId,
-                                                    bookId = bookId,
-                                                    rating = rating,
-                                                    comment = comment.trim()
-                                                )
-                                            } catch (e: Exception) {
-                                                // si falla el remoto, no rompemos la app
-                                                e.printStackTrace()
-                                                snackbarHostState.showSnackbar(
-                                                    "Reseña guardada localmente, pero falló el servidor de reseñas."
-                                                )
-                                            }
-                                        }
 
                                         rating = 0
                                         comment = ""
@@ -437,15 +412,12 @@ fun BookDetailScreen(
 }
 
 private suspend fun deleteBookFromMicroservice(bookId: Long) {
-    val adminKey = "tu_clave_de_admin_aqui" //
+    val adminKey = "tu_clave_de_admin_aqui"
     withContext(Dispatchers.IO) {
         RetrofitClient.catalogApi.deleteBook(bookId, adminKey)
     }
 }
 
-/**
- * Un composable para mostrar una única reseña en la lista.
- */
 @Composable
 private fun ReviewItem(
     review: Review,
@@ -466,7 +438,7 @@ private fun ReviewItem(
             if (canDelete) {
                 IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                     Icon(
-                        Icons.Default.Delete,
+                        Icons.Filled.Delete,
                         contentDescription = "Eliminar reseña",
                         tint = MaterialTheme.colorScheme.error
                     )

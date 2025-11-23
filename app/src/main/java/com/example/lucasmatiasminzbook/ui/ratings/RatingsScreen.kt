@@ -10,176 +10,124 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RatingsScreen(
     onBack: () -> Unit,
     isAuthenticated: Boolean,
-    userId: Long?,
-    viewModel: RatingsViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    userId: Long?
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val vm: RatingsViewModel = viewModel()
+    val state by vm.uiState.collectAsState()
 
-    var rating by remember { mutableStateOf(0) }
-    var comment by remember { mutableStateOf("") }
+    // 1) si no está logeado, mostramos mensaje y listo (no crashea)
+    if (!isAuthenticated) {
+        NotLoggedInScreen(onBack)
+        return
+    }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    // 2) si userId viene null por alguna razón, tampoco crashea
+    if (userId == null) {
+        MissingUserIdScreen(onBack)
+        return
+    }
 
-    // Mostrar mensaje cuando se envía review
-    LaunchedEffect(state.reviewSent) {
-        if (state.reviewSent) {
-            scope.launch {
-                snackbarHostState.showSnackbar("Reseña enviada correctamente")
-            }
-            viewModel.clearReviewSentFlag()
-            rating = 0
-            comment = ""
-        }
+    // 3) cargamos reseñas sólo cuando tenemos userId válido
+    LaunchedEffect(userId) {
+        vm.loadUserRatings(userId)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notas y reseñas") },
+                title = { Text("Mis notas") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
+                            imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Volver"
                         )
                     }
                 }
             )
-        },
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
         }
-    ) { padding ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .padding(padding)
+                .fillMaxSize()
+                .padding(innerPadding)
                 .padding(16.dp)
         ) {
-
-            // 🔒 Bloqueo si NO hay sesión válida
-            if (!isAuthenticated || userId == null) {
-                Text(
-                    text = "Debes iniciar sesión para publicar una reseña.",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Vuelve a la pantalla de inicio, ingresa con tu cuenta y luego entra de nuevo a esta sección.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                return@Column
-            }
-
-            // ===============================
-            // FORMULARIO DE NUEVA RESEÑA
-            // ===============================
-            Text(
-                text = "Publicar nueva reseña",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Rating simple 1–5 (puedes cambiarlo por estrellitas si quieres)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                (1..5).forEach { value ->
-                    FilterChip(
-                        selected = rating == value,
-                        onClick = { rating = value },
-                        label = { Text("$value ★") }
-                    )
+            when {
+                state.isLoading -> {
+                    CircularProgressIndicator()
                 }
-            }
 
-            Spacer(Modifier.height(8.dp))
+                state.errorMessage != null -> {
+                    Text(text = state.errorMessage ?: "Error desconocido")
+                }
 
-            OutlinedTextField(
-                value = comment,
-                onValueChange = { comment = it },
-                label = { Text("Comentario") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-            )
+                state.reviews.isEmpty() -> {
+                    Text("Todavía no has publicado reseñas.")
+                }
 
-            Spacer(Modifier.height(12.dp))
-
-            Button(
-                onClick = {
-                    viewModel.createReview(
-                        userId = userId,
-                        rating = rating,
-                        comment = comment
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isLoading &&
-                        rating in 1..5 &&
-                        comment.isNotBlank()
-            ) {
-                Text("Publicar reseña")
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ===============================
-            // LISTA DE RESEÑAS EXISTENTES
-            // ===============================
-            Text(
-                text = "Mis reseñas",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            if (state.isLoading && state.reviews.isEmpty()) {
-                CircularProgressIndicator()
-            } else {
-                LazyColumn {
-                    items(state.reviews) { review ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(
-                                    text = "${review.rating} ★",
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = review.comment,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+                else -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(state.reviews) { review ->
+                            Card {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "Libro ID: ${review.bookId}",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("⭐ ${review.rating}/5")
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(review.comment)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "Fecha: ${review.fecha}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
 
-            // ===============================
-            // ERRORES
-            // ===============================
-            state.error?.let { errorMsg ->
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = errorMsg,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
+@Composable
+private fun NotLoggedInScreen(onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text("Debes iniciar sesión para ver tus notas.")
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onBack) {
+            Text("Volver")
+        }
+    }
+}
+
+@Composable
+private fun MissingUserIdScreen(onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text("No se pudo identificar tu usuario. Vuelve a iniciar sesión.")
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onBack) {
+            Text("Volver")
         }
     }
 }

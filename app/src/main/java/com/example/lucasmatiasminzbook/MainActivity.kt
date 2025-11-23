@@ -220,7 +220,8 @@ class MainActivity : FragmentActivity() {
                                     bookId = id,
                                     userId = ui.userId,                 // 👈 AHORA SÍ
                                     onBack = { nav.popBackStack() },
-                                    isAdmin = ui.role == "ADMIN"
+                                    isAdmin = ui.role == "ADMIN",
+                                    cartViewModel = cartViewModel
                                 )
                             }
 
@@ -244,7 +245,8 @@ class MainActivity : FragmentActivity() {
                             composable(Route.Cart.path) {
                                 CartScreen(
                                     onBack = { nav.popBackStack() },
-                                    onCheckout = { nav.navigate(Route.Checkout.path) }
+                                    onCheckout = { nav.navigate(Route.Checkout.path) },
+                                    cartViewModel = cartViewModel   // 👈 AQUI SE AGREGA
                                 )
                             }
                             // 🔹 RUTA DE SOPORTE ACTUALIZADA
@@ -276,9 +278,12 @@ class MainActivity : FragmentActivity() {
                             }
 
                             composable(Route.Checkout.path) {
+                                val cartViewModel: CartViewModel = viewModel()
+
                                 CheckoutScreen(
                                     onBack = { nav.popBackStack() },
                                     onPaymentSuccess = {
+                                        cartViewModel.clearCart()   // 🧹 vaciar carrito
                                         nav.navigate(Route.Menu.path) {
                                             popUpTo(Route.Cart.path) { inclusive = true }
                                         }

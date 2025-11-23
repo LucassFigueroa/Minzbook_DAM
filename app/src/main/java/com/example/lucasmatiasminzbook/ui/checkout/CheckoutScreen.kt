@@ -31,22 +31,23 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
 
 // --- Transformaciones Visuales para el Formato Automático ---
 
 class CreditCardVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
+        // Máximo 16 dígitos
         val trimmed = if (text.text.length >= 16) text.text.substring(0..15) else text.text
         var out = ""
         for (i in trimmed.indices) {
             out += trimmed[i]
+            // Inserta "-" después de cada bloque de 4, menos al final
             if (i % 4 == 3 && i != 15) out += "-"
         }
 
         val creditCardOffsetTranslator = object : OffsetMapping {
             override fun originalToTransformed(offset: Int): Int {
+                // 4-4-4-4 => agrega 1, 2 o 3 por los guiones
                 if (offset <= 3) return offset
                 if (offset <= 7) return offset + 1
                 if (offset <= 11) return offset + 2
@@ -69,15 +70,18 @@ class CreditCardVisualTransformation : VisualTransformation {
 
 class ExpiryDateVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
+        // Máximo 4 dígitos: MMYY
         val trimmed = if (text.text.length >= 4) text.text.substring(0..3) else text.text
         var out = ""
         for (i in trimmed.indices) {
             out += trimmed[i]
+            // Inserta "/" después de los 2 primeros (MM/YY)
             if (i == 1) out += "/"
         }
 
         val offsetMapping = object : OffsetMapping {
             override fun originalToTransformed(offset: Int): Int {
+                // Antes del "/", igual; después, suma 1
                 if (offset <= 1) return offset
                 if (offset <= 4) return offset + 1
                 return 5
@@ -94,14 +98,11 @@ class ExpiryDateVisualTransformation : VisualTransformation {
     }
 }
 
-// --- Pantalla de Checkout ---
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
     onBack: () -> Unit,
-    onPaymentSuccess: () -> Unit,
-    viewModel: CheckoutViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    onPaymentSuccess: () -> Unit
 ) {
     var cardNumber by remember { mutableStateOf("") }
     var expiryDate by remember { mutableStateOf("") }
@@ -110,21 +111,36 @@ fun CheckoutScreen(
     var showErrorDialog by remember { mutableStateOf<String?>(null) }
     var showSuccessDialog by remember { mutableStateOf(false) }
 
+    // Diálogo de error
     if (showErrorDialog != null) {
         AlertDialog(
             onDismissRequest = { showErrorDialog = null },
             title = { Text("Error de Validación") },
             text = { Text(showErrorDialog!!) },
-            confirmButton = { TextButton(onClick = { showErrorDialog = null }) { Text("Aceptar") } }
+            confirmButton = {
+                TextButton(onClick = { showErrorDialog = null }) {
+                    Text("Aceptar")
+                }
+            }
         )
     }
 
+    // Diálogo de éxito
     if (showSuccessDialog) {
         AlertDialog(
-            onDismissRequest = { /* No se puede cerrar */ },
+            onDismissRequest = { /* No cerrar tocando fuera */ },
             title = { Text("¡Compra Exitosa!") },
             text = { Text("Tu pedido ha sido procesado.") },
-            confirmButton = { TextButton(onClick = onPaymentSuccess) { Text("Aceptar") } }
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSuccessDialog = false
+                        onPaymentSuccess()
+                    }
+                ) {
+                    Text("Aceptar")
+                }
+            }
         )
     }
 
@@ -149,34 +165,59 @@ fun CheckoutScreen(
         ) {
             Text("Introduce los datos de tu tarjeta", style = MaterialTheme.typography.titleLarge)
 
+            // Número de tarjeta con guiones automáticos y máximo 16 dígitos
             OutlinedTextField(
                 value = cardNumber,
-                onValueChange = { if (it.length <= 16) cardNumber = it.filter(Char::isDigit) },
+                onValueChange = { input ->
+                    val onlyDigits = input.filter(Char::isDigit)
+                    if (onlyDigits.length <= 16) {
+                        cardNumber = onlyDigits
+                    }
+                },
                 label = { Text("Número de tarjeta") },
+                modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 visualTransformation = CreditCardVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                singleLine = true
             )
+
+            // Fecha de expiración MMYY → se muestra como MM/YY
             OutlinedTextField(
                 value = expiryDate,
-                onValueChange = { if (it.length <= 4) expiryDate = it.filter(Char::isDigit) },
+                onValueChange = { input ->
+                    val onlyDigits = input.filter(Char::isDigit)
+                    if (onlyDigits.length <= 4) {
+                        expiryDate = onlyDigits
+                    }
+                },
                 label = { Text("Fecha de expiración (MM/AA)") },
+                modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 visualTransformation = ExpiryDateVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                singleLine = true
             )
+
+            // CVV solo 3 dígitos
             OutlinedTextField(
                 value = cvv,
-                onValueChange = { if (it.length <= 3) cvv = it.filter(Char::isDigit) },
+                onValueChange = { input ->
+                    val onlyDigits = input.filter(Char::isDigit)
+                    if (onlyDigits.length <= 3) {
+                        cvv = onlyDigits
+                    }
+                },
                 label = { Text("CVV") },
+                modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
+                singleLine = true
             )
+
             OutlinedTextField(
                 value = cardHolder,
                 onValueChange = { cardHolder = it },
                 label = { Text("Nombre del titular") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             Button(
@@ -185,12 +226,21 @@ fun CheckoutScreen(
                     val year = expiryDate.drop(2).toIntOrNull()
 
                     when {
-                        cardNumber.length != 16 -> showErrorDialog = "El número de tarjeta debe tener 16 dígitos."
-                        cvv.length != 3 -> showErrorDialog = "El CVV debe tener 3 dígitos."
-                        expiryDate.length != 4 || month == null || month !in 1..12 || year == null -> showErrorDialog = "La fecha de expiración no es válida."
-                        cardHolder.isBlank() -> showErrorDialog = "El nombre del titular no puede estar vacío."
+                        cardNumber.length != 16 ->
+                            showErrorDialog = "El número de tarjeta debe tener 16 dígitos."
+
+                        cvv.length != 3 ->
+                            showErrorDialog = "El CVV debe tener 3 dígitos."
+
+                        expiryDate.length != 4 || month == null || month !in 1..12 || year == null ->
+                            showErrorDialog = "La fecha de expiración no es válida. Usa formato MMYY."
+
+                        cardHolder.isBlank() ->
+                            showErrorDialog = "El nombre del titular no puede estar vacío."
+
                         else -> {
-                            viewModel.processPayment { showSuccessDialog = true }
+                            // Si todo está OK, mostramos la confirmación
+                            showSuccessDialog = true
                         }
                     }
                 },
