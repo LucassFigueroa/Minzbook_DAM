@@ -1,0 +1,5 @@
+el nombre de la app es minzbook
+<resources>
+    <string name="app_name">MinzBook</string>
+</resources>
+y el splashscreen preferi dejarlo en blanco porque no logro hacer que el logo sea un png y si le pongo tro color se ve feo :c

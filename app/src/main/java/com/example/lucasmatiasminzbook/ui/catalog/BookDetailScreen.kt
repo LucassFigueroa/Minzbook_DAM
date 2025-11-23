@@ -436,12 +436,8 @@ fun BookDetailScreen(
     }
 }
 
-/**
- * Llama al microservicio para eliminar un libro.
- * ATENCIÓN: La clave de admin está hardcodeada. En una app real, obténla de un lugar seguro.
- */
 private suspend fun deleteBookFromMicroservice(bookId: Long) {
-    val adminKey = "tu_clave_de_admin_aqui" // <-- REEMPLAZAR!
+    val adminKey = "tu_clave_de_admin_aqui" //
     withContext(Dispatchers.IO) {
         RetrofitClient.catalogApi.deleteBook(bookId, adminKey)
     }
