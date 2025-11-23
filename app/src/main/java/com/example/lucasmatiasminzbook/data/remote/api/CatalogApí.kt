@@ -24,7 +24,7 @@ interface CatalogApi {
     // Crea un libro (JSON normal)
     @POST("catalog/books")
     suspend fun createBook(
-        @Body body: CreateBookRequest // o un DTO específico para crear (BookCreateRequest)
+        @Body body: CreateBookRequest
     ): BookDto
 
     // Elimina un libro, SOLO si X-ROLE = ADMIN

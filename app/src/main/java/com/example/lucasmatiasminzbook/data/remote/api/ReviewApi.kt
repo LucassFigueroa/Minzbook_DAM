@@ -33,7 +33,7 @@ interface ReviewApi {
         @Body request: CreateReviewRequestDto
     ): ReviewResponseDto
 
-    // GET /reviews/book/{bookId}  (por si después quieres listarlas desde el backend)
+
     @GET("reviews/book/{bookId}")
     suspend fun getReviewsByBook(
         @Path("bookId") bookId: Long
