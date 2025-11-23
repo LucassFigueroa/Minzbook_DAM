@@ -7,18 +7,12 @@ import com.example.lucasmatiasminzbook.data.remote.dto.UserResponse
 
 class AuthRepository {
 
-    // ==========================
-    // LOGIN
-    // ==========================
     suspend fun login(email: String, password: String): UserResponse {
         return RetrofitClient.authApi.login(
             UserLoginRequest(email, password)
         )
     }
 
-    // ==========================
-    // REGISTER
-    // ==========================
     suspend fun register(
         nombre: String,
         apellido: String,
@@ -30,9 +24,6 @@ class AuthRepository {
         )
     }
 
-    // ==========================
-    // ASIGNAR ROL (solo admin)
-    // ==========================
     suspend fun assignRole(
         userId: Long,
         role: String,

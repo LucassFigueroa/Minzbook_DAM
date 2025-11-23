@@ -21,6 +21,6 @@ interface AuthApi {
     suspend fun assignRole(
         @Path("id") userId: Long,
         @Header("X-ADMIN-KEY") adminKey: String,
-        @Body body: Map<String, String> // { "rol": "ADMIN" }
+        @Body body: Map<String, String>
     )
 }

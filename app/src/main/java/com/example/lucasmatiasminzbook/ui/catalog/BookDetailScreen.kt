@@ -46,15 +46,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.lucasmatiasminzbook.AuthLocalStore
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.local.book.Review
 import com.example.lucasmatiasminzbook.data.local.cart.CartRepository
 import com.example.lucasmatiasminzbook.data.local.user.Role
 import com.example.lucasmatiasminzbook.data.local.user.UserRepository
+import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
 import com.example.lucasmatiasminzbook.ui.common.StarDisplay
 import com.example.lucasmatiasminzbook.ui.common.StarInput
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
@@ -63,7 +67,8 @@ import java.util.Locale
 @Composable
 fun BookDetailScreen(
     bookId: Long,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isAdmin: Boolean = false   // 👈 viene desde MainActivity según rol del AuthService
 ) {
     val ctx = LocalContext.current
     val repo = remember(ctx.applicationContext) { BookRepository(ctx.applicationContext) }
@@ -93,23 +98,39 @@ fun BookDetailScreen(
             text = {
                 Column {
                     Text("Por favor, escribe el motivo de la eliminación.")
-                    OutlinedTextField(value = reason, onValueChange = { reason = it }, label = { Text("Motivo") })
+                    OutlinedTextField(
+                        value = reason,
+                        onValueChange = { reason = it },
+                        label = { Text("Motivo") }
+                    )
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     if (reason.isNotBlank()) {
                         scope.launch {
-                            when (itemToDelete) {
-                                is Review -> repo.deleteReview(itemToDelete as Review)
-                                is Long -> repo.deleteBook(itemToDelete as Long)
+                            try {
+                                when (itemToDelete) {
+                                    is Review -> repo.deleteReview(itemToDelete as Review)
+                                    is Long -> deleteBookFromMicroservice(itemToDelete as Long)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                snackbarHostState.showSnackbar(
+                                    e.localizedMessage ?: "Error al eliminar"
+                                )
+                            } finally {
+                                showDeleteDialog = false
                             }
-                            showDeleteDialog = false
                         }
                     }
                 }) { Text("Eliminar") }
             },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
@@ -124,7 +145,8 @@ fun BookDetailScreen(
                     }
                 },
                 actions = {
-                    if (user?.role == Role.MODERATOR) {
+                    // 🔐 Solo ADMIN ve el botón de eliminar libro
+                    if (isAdmin) {
                         IconButton(onClick = {
                             itemToDelete = bookId
                             showDeleteDialog = true
@@ -148,7 +170,8 @@ fun BookDetailScreen(
 
         val currency = remember {
             NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-CL")).apply {
-                currency = Currency.getInstance("CLP"); maximumFractionDigits = 0
+                currency = Currency.getInstance("CLP")
+                maximumFractionDigits = 0
             }
         }
 
@@ -167,12 +190,8 @@ fun BookDetailScreen(
 
                     when {
                         !cover.isNullOrBlank() -> {
-                            // Uri/string (galería/cámara/web)
-                            coil.compose.AsyncImage(
-                                model = coil.request.ImageRequest.Builder(ctx)
-                                    .data(cover)
-                                    .crossfade(true)
-                                    .build(),
+                            AsyncImage(
+                                model = cover,
                                 contentDescription = "Portada",
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -180,8 +199,8 @@ fun BookDetailScreen(
                                 contentScale = ContentScale.Crop
                             )
                         }
+
                         resId != null -> {
-                            // Recurso drawable (seed)
                             Image(
                                 painter = painterResource(id = resId),
                                 contentDescription = "Portada",
@@ -191,6 +210,7 @@ fun BookDetailScreen(
                                 contentScale = ContentScale.Crop
                             )
                         }
+
                         else -> {
                             Box(
                                 modifier = Modifier
@@ -198,7 +218,10 @@ fun BookDetailScreen(
                                     .height(300.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Sin portada", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "Sin portada",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -223,20 +246,30 @@ fun BookDetailScreen(
                     Button(onClick = {
                         scope.launch {
                             cartRepo.addToCart(
-                                book!!.id, book!!.title, book!!.author,
-                                book!!.purchasePrice, "Compra"
+                                book!!.id,
+                                book!!.title,
+                                book!!.author,
+                                book!!.purchasePrice,
+                                "Compra"
                             )
-                            snackbarHostState.showSnackbar("'${book!!.title}' agregado para comprar")
+                            snackbarHostState.showSnackbar(
+                                "'${book!!.title}' agregado para comprar"
+                            )
                         }
                     }) { Text("Compra: ${currency.format(book!!.purchasePrice)}") }
 
                     Button(onClick = {
                         scope.launch {
                             cartRepo.addToCart(
-                                book!!.id, book!!.title, book!!.author,
-                                book!!.rentPrice, "Arriendo"
+                                book!!.id,
+                                book!!.title,
+                                book!!.author,
+                                book!!.rentPrice,
+                                "Arriendo"
                             )
-                            snackbarHostState.showSnackbar("'${book!!.title}' agregado para arrendar")
+                            snackbarHostState.showSnackbar(
+                                "'${book!!.title}' agregado para arrendar"
+                            )
                         }
                     }) { Text("Arriendo 1 semana: ${currency.format(book!!.rentPrice)}") }
                 }
@@ -246,18 +279,31 @@ fun BookDetailScreen(
                     val rounded = (avg ?: 0.0).toInt()
                     StarDisplay(rating = rounded)
                     Spacer(Modifier.width(8.dp))
-                    Text(if (avg == null) "Sin calificaciones" else String.format(Locale.US, "%.1f / 5", avg))
+                    Text(
+                        if (avg == null) "Sin calificaciones"
+                        else String.format(Locale.US, "%.1f / 5", avg)
+                    )
                 }
             }
 
             // ===== Descripción =====
             item {
-                Text("Descripción", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Descripción",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Text(book!!.description, style = MaterialTheme.typography.bodyMedium)
             }
 
             // ===== Reseñas =====
-            item { Text("Reseñas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+            item {
+                Text(
+                    "Reseñas",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
             if (reviews.isEmpty()) {
                 item {
@@ -268,7 +314,10 @@ fun BookDetailScreen(
                 }
             } else {
                 items(reviews, key = { it.createdAt }) { r ->
-                    ReviewItem(r, canDelete = user?.role == Role.MODERATOR) {
+                    ReviewItem(
+                        r,
+                        canDelete = user?.role == Role.MODERATOR
+                    ) {
                         itemToDelete = r
                         showDeleteDialog = true
                     }
@@ -278,7 +327,11 @@ fun BookDetailScreen(
 
             // ===== Tu reseña =====
             item {
-                Text("Tu reseña", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Tu reseña",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Spacer(Modifier.height(8.dp))
 
                 StarInput(rating = rating, onChange = { rating = it })
@@ -308,11 +361,21 @@ fun BookDetailScreen(
                                 else -> {
                                     sending = true
                                     try {
-                                        repo.addReview(bookId, email, name, rating, comment.trim())
-                                        rating = 0; comment = ""
+                                        repo.addReview(
+                                            bookId,
+                                            email,
+                                            name,
+                                            rating,
+                                            comment.trim()
+                                        )
+                                        rating = 0
+                                        comment = ""
                                     } catch (e: Exception) {
-                                        error = e.localizedMessage ?: "No se pudo guardar la reseña"
-                                    } finally { sending = false }
+                                        error =
+                                            e.localizedMessage ?: "No se pudo guardar la reseña"
+                                    } finally {
+                                        sending = false
+                                    }
                                 }
                             }
                         }
@@ -348,5 +411,13 @@ private fun ReviewItem(
         }
         Spacer(Modifier.height(4.dp))
         Text(r.comment)
+    }
+}
+
+// ========= llamada al microservicio para borrar libro =========
+suspend fun deleteBookFromMicroservice(bookId: Long) {
+    withContext(Dispatchers.IO) {
+        // Enviamos rol ADMIN en el header
+        RetrofitClient.catalogApi.deleteBook(bookId, "ADMIN")
     }
 }

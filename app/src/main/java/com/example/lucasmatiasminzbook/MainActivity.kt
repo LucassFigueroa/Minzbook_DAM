@@ -62,7 +62,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.rememberAsyncImagePainter
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
-import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import com.example.lucasmatiasminzbook.nav.Route
 import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
 import com.example.lucasmatiasminzbook.ui.cart.CartScreen
@@ -76,6 +75,8 @@ import com.example.lucasmatiasminzbook.ui.ratings.RatingsScreen
 import com.example.lucasmatiasminzbook.ui.support.SupportScreen
 import com.example.lucasmatiasminzbook.ui.support.SupportViewModel
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
+import com.example.lucasmatiasminzbook.viewmodel.AuthUiState
+import com.example.lucasmatiasminzbook.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : FragmentActivity() {
@@ -102,7 +103,11 @@ class MainActivity : FragmentActivity() {
                                 ),
                                 navigationIcon = {
                                     IconButton(onClick = { nav.navigate(Route.Menu.path) }) {
-                                        Icon(Icons.Filled.Home, contentDescription = "Inicio", tint = Color.White)
+                                        Icon(
+                                            Icons.Filled.Home,
+                                            contentDescription = "Inicio",
+                                            tint = Color.White
+                                        )
                                     }
                                 },
                                 actions = {
@@ -114,11 +119,19 @@ class MainActivity : FragmentActivity() {
                                         }
                                     ) {
                                         IconButton(onClick = { nav.navigate(Route.Cart.path) }) {
-                                            Icon(Icons.Filled.ShoppingCart, contentDescription = "Carrito", tint = Color.White)
+                                            Icon(
+                                                Icons.Filled.ShoppingCart,
+                                                contentDescription = "Carrito",
+                                                tint = Color.White
+                                            )
                                         }
                                     }
                                     IconButton(onClick = { nav.navigate(Route.Profile.path) }) {
-                                        Icon(Icons.Filled.AccountCircle, contentDescription = "Perfil", tint = Color.White)
+                                        Icon(
+                                            Icons.Filled.AccountCircle,
+                                            contentDescription = "Perfil",
+                                            tint = Color.White
+                                        )
                                     }
                                 }
                             )
@@ -146,50 +159,25 @@ class MainActivity : FragmentActivity() {
                                     onBack = { nav.popBackStack() },
                                     onGoRegister = { nav.navigate(Route.Register.path) },
                                     onTryLogin = { email, password ->
-                                        val repo = UserRepository(this@MainActivity)
-                                        val res = repo.login(email, password)
-                                        if (res.isSuccess) {
-                                            val user = res.getOrNull()!!
-                                            AuthLocalStore.setSession(
-                                                applicationContext,
-                                                user.email,
-                                                user.name
-                                            )
-                                            null
-                                        } else {
-                                            res.exceptionOrNull()?.localizedMessage
-                                                ?: "Usuario o contraseña incorrectos"
-                                        }
+                                        // Ahora el login real lo maneja el AuthViewModel con el microservicio
+                                        authViewModel.login(email, password)
                                     },
                                     onCredentialsOk = {
-                                        val name = AuthLocalStore.lastName(applicationContext) ?: "Usuario"
-                                        authViewModel.simulateLogin(name)
                                         nav.navigate(Route.Menu.path) {
                                             popUpTo(Route.Home.path) { inclusive = true }
                                         }
                                     },
-                                    rememberInitial = AuthLocalStore.isRememberMe(applicationContext),
-                                    onToggleRemember = {
-                                        AuthLocalStore.setRememberMe(applicationContext, it)
-                                    }
+                                    rememberInitial = false,
+                                    onToggleRemember = { /* si luego quieres remember me, lo conectamos */ }
                                 )
                             }
                             composable(Route.Register.path) {
                                 RegisterScreen(
                                     onBack = { nav.popBackStack() },
                                     onGoLogin = { nav.navigate(Route.Login.path) },
-                                    onTryRegister = { name, email, password, photoUri ->
-                                        val repo = UserRepository(this@MainActivity)
-                                        val res = repo.register(name, email, password)
-                                        if (res.isSuccess) {
-                                            if (photoUri != null) {
-                                                AuthLocalStore.setProfilePhotoUri(applicationContext, photoUri)
-                                            }
-                                            null
-                                        } else {
-                                            res.exceptionOrNull()?.localizedMessage
-                                                ?: "No se pudo crear la cuenta"
-                                        }
+                                    onTryRegister = { name, email, password, _photoUri ->
+                                        // El register también con AuthViewModel → microservicio
+                                        authViewModel.register(name, email, password)
                                     },
                                     onRegistered = {
                                         nav.navigate(Route.Login.path) {
@@ -200,25 +188,28 @@ class MainActivity : FragmentActivity() {
                             }
                             composable(Route.Menu.path) {
                                 MinzbookMenu(
-                                    userName = ui.displayName ?: "Usuario",
+                                    userName = ui.userName ?: "Usuario",
+                                    role = ui.role, // 👈 AQUÍ PASAMOS EL ROL
                                     onExplore = { nav.navigate(Route.Catalog.path) },
                                     onMyBooks = { nav.navigate(Route.MyBooks.path) },
                                     onRatings = { nav.navigate(Route.Ratings.path) },
                                     onSupport = { nav.navigate(Route.Support.path) },
                                     onLogout = {
-                                        AuthLocalStore.clearSession(this@MainActivity)
-                                        authViewModel.simulateLogout()
+                                        authViewModel.logout()
                                         nav.navigate(Route.Home.path) {
                                             popUpTo(Route.Menu.path) { inclusive = true }
                                         }
                                     },
-                                    onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
+                                    onOpenBook = { id: Long ->
+                                        nav.navigate("${Route.BookDetail.path}/$id")
+                                    }
                                 )
                             }
                             composable(Route.Catalog.path) {
                                 CatalogScreen(
                                     onBack = { nav.popBackStack() },
                                     onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
+                                    // si quieres luego: isAdmin = ui.role == "ADMIN"
                                 )
                             }
                             composable(
@@ -226,7 +217,11 @@ class MainActivity : FragmentActivity() {
                                 arguments = listOf(navArgument("id") { type = NavType.LongType })
                             ) { backStackEntry ->
                                 val id = backStackEntry.arguments?.getLong("id") ?: 0L
-                                BookDetailScreen(bookId = id, onBack = { nav.popBackStack() })
+                                BookDetailScreen(
+                                    bookId = id,
+                                    onBack = { nav.popBackStack() },
+                                    isAdmin = ui.role == "ADMIN"   // 👈 AQUÍ ESTÁ LA MAGIA
+                                )
                             }
                             composable(Route.Profile.path) {
                                 ProfileScreen(onBack = { nav.popBackStack() })
@@ -241,18 +236,28 @@ class MainActivity : FragmentActivity() {
                                 RatingsScreen(onBack = { nav.popBackStack() })
                             }
                             composable(Route.Cart.path) {
-                                CartScreen(onBack = { nav.popBackStack() }, onCheckout = { nav.navigate(Route.Checkout.path) })
+                                CartScreen(
+                                    onBack = { nav.popBackStack() },
+                                    onCheckout = { nav.navigate(Route.Checkout.path) }
+                                )
                             }
                             composable(Route.Support.path) {
-                                val supportViewModel: SupportViewModel = viewModel(factory = AppViewModelProvider.Factory)
-                                SupportScreen(viewModel = supportViewModel)
+                                val supportViewModel: SupportViewModel =
+                                    viewModel(factory = AppViewModelProvider.Factory)
+                                SupportScreen(
+                                    viewModel = supportViewModel
+                                    // aquí podrías pasar canAnswer = (ui.role == "SUPPORT")
+                                )
                             }
                             composable(Route.Checkout.path) {
-                                CheckoutScreen(onBack = { nav.popBackStack() }, onPaymentSuccess = {
-                                    nav.navigate(Route.Menu.path) {
-                                        popUpTo(Route.Cart.path) { inclusive = true }
+                                CheckoutScreen(
+                                    onBack = { nav.popBackStack() },
+                                    onPaymentSuccess = {
+                                        nav.navigate(Route.Menu.path) {
+                                            popUpTo(Route.Cart.path) { inclusive = true }
+                                        }
                                     }
-                                })
+                                )
                             }
                         }
                     }
@@ -315,7 +320,7 @@ fun MinzbookHome(
                     ) { Text("Vamos!!!") }
                 } else {
                     Text(
-                        "Bienvenida, ${uiState.displayName}",
+                        "Bienvenida, ${uiState.userName ?: "Usuario"}",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(top = 8.dp)
                     )
@@ -328,6 +333,7 @@ fun MinzbookHome(
 @Composable
 fun MinzbookMenu(
     userName: String,
+    role: String?,                 // 👈 NUEVO PARÁMETRO
     onExplore: () -> Unit,
     onMyBooks: () -> Unit,
     onRatings: () -> Unit,
@@ -339,12 +345,27 @@ fun MinzbookMenu(
     val books by repo.books().collectAsState(initial = emptyList())
     val featuredBook = remember(books) { books.randomOrNull() }
 
+    val isAdmin = role == "ADMIN"
+    val isSupport = role == "SUPPORT"
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
         Text("Bienvenido, $userName", style = MaterialTheme.typography.headlineSmall)
+
+        // Muestra el rol debajo del nombre (solo para que tú veas que está llegando bien)
+        role?.let {
+            val rolTexto = when (it) {
+                "ADMIN" -> "Administrador"
+                "SUPPORT" -> "Soporte"
+                "USER" -> "Usuario"
+                else -> it
+            }
+            Text("Rol: $rolTexto", style = MaterialTheme.typography.bodyMedium)
+        }
+
         Spacer(Modifier.height(16.dp))
 
         // Libro destacado
@@ -359,7 +380,7 @@ fun MinzbookMenu(
             ) {
                 Row(Modifier.padding(16.dp)) {
                     val painter = if (featuredBook.coverResourceId != null) {
-                        painterResource(id = featuredBook.coverResourceId!!) // Es seguro por el if
+                        painterResource(id = featuredBook.coverResourceId!!)
                     } else {
                         rememberAsyncImagePainter(model = featuredBook.coverUri)
                     }
@@ -371,8 +392,14 @@ fun MinzbookMenu(
                     )
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text(featuredBook.title, style = MaterialTheme.typography.titleMedium)
-                        Text(featuredBook.author, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            featuredBook.title,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            featuredBook.author,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
@@ -394,8 +421,16 @@ fun MinzbookMenu(
                     modifier = Modifier.width(150.dp)
                 ) {
                     Column(Modifier.padding(8.dp)) {
-                        Text(book.title, style = MaterialTheme.typography.titleSmall, maxLines = 2)
-                        Text(book.author, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        Text(
+                            book.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 2
+                        )
+                        Text(
+                            book.author,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1
+                        )
                     }
                 }
             }
@@ -404,7 +439,10 @@ fun MinzbookMenu(
         Spacer(Modifier.height(16.dp))
 
         // Botones de navegación
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Button(onClick = onExplore, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Book, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
@@ -421,11 +459,18 @@ fun MinzbookMenu(
                 Text("Notas")
             }
             Button(onClick = onSupport, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.AutoMirrored.Filled.HelpOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
                 Spacer(Modifier.width(8.dp))
                 Text("Soporte")
             }
         }
-        TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Cerrar sesión") }
+
+        TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
+            Text("Cerrar sesión")
+        }
     }
 }

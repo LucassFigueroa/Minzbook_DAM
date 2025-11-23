@@ -3,89 +3,99 @@ package com.example.lucasmatiasminzbook.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lucasmatiasminzbook.data.remote.auth.AuthRepository
-import com.example.lucasmatiasminzbook.store.AuthLocalStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 data class AuthUiState(
     val isAuthenticated: Boolean = false,
-    val userName: String? = null,
-    val email: String? = null,
-    val role: String? = null,
-    val token: String? = null
+    val displayName: String? = null,
+    val isLoading: Boolean = false,
+    val error: String? = null
 )
 
 class AuthViewModel(
-    private val authRepo: AuthRepository,
-    private val store: AuthLocalStore
+    private val repository: AuthRepository = AuthRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState
 
-    init {
-        loadSession()
-    }
+    // ==========================
+    // LOGIN REAL (si quisieras usarlo desde la UI)
+    // ==========================
+    fun login(email: String, password: String) {
+        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-    // ============================================================
-    //      LOGIN REAL
-    // ============================================================
-    fun login(email: String, password: String, onError: (String?) -> Unit, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            val result = authRepo.login(email, password)
+            try {
+                val response = repository.login(email, password)
 
-            if (result.isFailure) {
-                onError(result.exceptionOrNull()?.localizedMessage ?: "Error desconocido")
-                return@launch
-            }
-
-            val user = result.getOrNull()!!
-
-            store.saveSession(
-                email = user.email,
-                name = user.nombre,
-                role = user.rol,
-                token = user.token
-            )
-
-            _uiState.value = AuthUiState(
-                isAuthenticated = true,
-                userName = user.nombre,
-                email = user.email,
-                role = user.rol,
-                token = user.token
-            )
-
-            onSuccess()
-        }
-    }
-
-    // ============================================================
-    //       CARGAR SESIÓN AUTOMÁTICA
-    // ============================================================
-    private fun loadSession() {
-        viewModelScope.launch {
-            val session = store.loadSession()
-            if (session != null) {
                 _uiState.value = AuthUiState(
                     isAuthenticated = true,
-                    userName = session.name,
-                    email = session.email,
-                    role = session.role,
-                    token = session.token
+                    displayName = "${response.nombre} ${response.apellido}",
+                    isLoading = false,
+                    error = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState(
+                    isAuthenticated = false,
+                    displayName = null,
+                    isLoading = false,
+                    error = e.message ?: "Error al iniciar sesión"
                 )
             }
         }
     }
 
-    // ============================================================
-    //       LOGOUT REAL
-    // ============================================================
-    fun logout() {
+    // ==========================
+    // REGISTER REAL (si algún día lo llamas desde aquí)
+    // ==========================
+    fun register(nombre: String, apellido: String, email: String, password: String) {
+        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
         viewModelScope.launch {
-            store.clear()
-            _uiState.value = AuthUiState()
+            try {
+                val response = repository.register(nombre, apellido, email, password)
+
+                _uiState.value = AuthUiState(
+                    isAuthenticated = true,
+                    displayName = "${response.nombre} ${response.apellido}",
+                    isLoading = false,
+                    error = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState(
+                    isAuthenticated = false,
+                    displayName = null,
+                    isLoading = false,
+                    error = e.message ?: "Error al registrarse"
+                )
+            }
         }
+    }
+
+    // ==========================
+    // SIMULATE LOGIN (lo usa MainActivity)
+    // ==========================
+    fun simulateLogin(displayName: String = "Usuario") {
+        _uiState.value = AuthUiState(
+            isAuthenticated = true,
+            displayName = displayName,
+            isLoading = false,
+            error = null
+        )
+    }
+
+    // ==========================
+    // SIMULATE LOGOUT (lo usa MainActivity)
+    // ==========================
+    fun simulateLogout() {
+        _uiState.value = AuthUiState(
+            isAuthenticated = false,
+            displayName = null,
+            isLoading = false,
+            error = null
+        )
     }
 }
