@@ -72,6 +72,7 @@ import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
 import com.example.lucasmatiasminzbook.ui.mybooks.MyBooksScreen
 import com.example.lucasmatiasminzbook.ui.profile.ProfileScreen
 import com.example.lucasmatiasminzbook.ui.ratings.RatingsScreen
+import com.example.lucasmatiasminzbook.ui.support.SupportConversationScreen
 import com.example.lucasmatiasminzbook.ui.support.SupportScreen
 import com.example.lucasmatiasminzbook.ui.support.SupportViewModel
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
@@ -159,7 +160,6 @@ class MainActivity : FragmentActivity() {
                                     onBack = { nav.popBackStack() },
                                     onGoRegister = { nav.navigate(Route.Register.path) },
                                     onTryLogin = { email, password ->
-                                        // Ahora el login real lo maneja el AuthViewModel con el microservicio
                                         authViewModel.login(email, password)
                                     },
                                     onCredentialsOk = {
@@ -168,7 +168,7 @@ class MainActivity : FragmentActivity() {
                                         }
                                     },
                                     rememberInitial = false,
-                                    onToggleRemember = { /* si luego quieres remember me, lo conectamos */ }
+                                    onToggleRemember = { }
                                 )
                             }
                             composable(Route.Register.path) {
@@ -176,7 +176,6 @@ class MainActivity : FragmentActivity() {
                                     onBack = { nav.popBackStack() },
                                     onGoLogin = { nav.navigate(Route.Login.path) },
                                     onTryRegister = { name, email, password, _photoUri ->
-                                        // El register también con AuthViewModel → microservicio
                                         authViewModel.register(name, email, password)
                                     },
                                     onRegistered = {
@@ -189,7 +188,7 @@ class MainActivity : FragmentActivity() {
                             composable(Route.Menu.path) {
                                 MinzbookMenu(
                                     userName = ui.userName ?: "Usuario",
-                                    role = ui.role, // 👈 AQUÍ PASAMOS EL ROL
+                                    role = ui.role,
                                     onExplore = { nav.navigate(Route.Catalog.path) },
                                     onMyBooks = { nav.navigate(Route.MyBooks.path) },
                                     onRatings = { nav.navigate(Route.Ratings.path) },
@@ -209,7 +208,6 @@ class MainActivity : FragmentActivity() {
                                 CatalogScreen(
                                     onBack = { nav.popBackStack() },
                                     onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
-                                    // si quieres luego: isAdmin = ui.role == "ADMIN"
                                 )
                             }
                             composable(
@@ -217,12 +215,15 @@ class MainActivity : FragmentActivity() {
                                 arguments = listOf(navArgument("id") { type = NavType.LongType })
                             ) { backStackEntry ->
                                 val id = backStackEntry.arguments?.getLong("id") ?: 0L
+
                                 BookDetailScreen(
                                     bookId = id,
+                                    userId = ui.userId,                 // 👈 AHORA SÍ
                                     onBack = { nav.popBackStack() },
-                                    isAdmin = ui.role == "ADMIN"   // 👈 AQUÍ ESTÁ LA MAGIA
+                                    isAdmin = ui.role == "ADMIN"
                                 )
                             }
+
                             composable(Route.Profile.path) {
                                 ProfileScreen(onBack = { nav.popBackStack() })
                             }
@@ -233,22 +234,47 @@ class MainActivity : FragmentActivity() {
                                 )
                             }
                             composable(Route.Ratings.path) {
-                                RatingsScreen(onBack = { nav.popBackStack() })
+                                RatingsScreen(
+                                    onBack = { nav.popBackStack() },
+                                    isAuthenticated = ui.isAuthenticated,
+                                    userId = ui.userId
+                                )
                             }
+
                             composable(Route.Cart.path) {
                                 CartScreen(
                                     onBack = { nav.popBackStack() },
                                     onCheckout = { nav.navigate(Route.Checkout.path) }
                                 )
                             }
+                            // 🔹 RUTA DE SOPORTE ACTUALIZADA
                             composable(Route.Support.path) {
-                                val supportViewModel: SupportViewModel =
-                                    viewModel(factory = AppViewModelProvider.Factory)
+                                val canCreateTicket = ui.role != "SUPPORT"
+                                val userIdToUse = if (canCreateTicket) ui.userId else ui.userId  // soporte también tiene id
+
                                 SupportScreen(
-                                    viewModel = supportViewModel
-                                    // aquí podrías pasar canAnswer = (ui.role == "SUPPORT")
+                                    userId = userIdToUse,
+                                    canCreateTicket = canCreateTicket,
+                                    onBack = { nav.popBackStack() },
+                                    onOpenTicket = { conversationId ->
+                                        nav.navigate("support_chat/$conversationId")
+                                    }
                                 )
                             }
+                            composable(
+                                route = "support_chat/{conversationId}",
+                                arguments = listOf(navArgument("conversationId") { type = NavType.LongType })
+                            ) { backStackEntry ->
+                                val conversationId = backStackEntry.arguments?.getLong("conversationId") ?: 0L
+
+                                SupportConversationScreen(
+                                    conversationId = conversationId,
+                                    userId = ui.userId,              // el id del usuario logueado (sea soporte o cliente)
+                                    isSupport = ui.role == "SUPPORT",
+                                    onBack = { nav.popBackStack() }
+                                )
+                            }
+
                             composable(Route.Checkout.path) {
                                 CheckoutScreen(
                                     onBack = { nav.popBackStack() },
@@ -333,7 +359,7 @@ fun MinzbookHome(
 @Composable
 fun MinzbookMenu(
     userName: String,
-    role: String?,                 // 👈 NUEVO PARÁMETRO
+    role: String?,
     onExplore: () -> Unit,
     onMyBooks: () -> Unit,
     onRatings: () -> Unit,
@@ -355,7 +381,6 @@ fun MinzbookMenu(
     ) {
         Text("Bienvenido, $userName", style = MaterialTheme.typography.headlineSmall)
 
-        // Muestra el rol debajo del nombre (solo para que tú veas que está llegando bien)
         role?.let {
             val rolTexto = when (it) {
                 "ADMIN" -> "Administrador"
@@ -368,7 +393,6 @@ fun MinzbookMenu(
 
         Spacer(Modifier.height(16.dp))
 
-        // Libro destacado
         if (featuredBook != null) {
             Text("Libro del día", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(8.dp))
@@ -407,7 +431,6 @@ fun MinzbookMenu(
 
         Spacer(Modifier.height(16.dp))
 
-        // Añadidos recientemente
         Text("Añadidos recientemente", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
         LazyRow(
@@ -438,7 +461,6 @@ fun MinzbookMenu(
 
         Spacer(Modifier.height(16.dp))
 
-        // Botones de navegación
         Column(
             Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)

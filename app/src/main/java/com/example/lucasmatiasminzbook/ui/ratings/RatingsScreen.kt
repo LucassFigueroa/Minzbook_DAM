@@ -1,98 +1,183 @@
 package com.example.lucasmatiasminzbook.ui.ratings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.lucasmatiasminzbook.AuthLocalStore
-import com.example.lucasmatiasminzbook.data.local.book.BookRepository
-import com.example.lucasmatiasminzbook.data.local.book.Review
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RatingsScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isAuthenticated: Boolean,
+    userId: Long?,
+    viewModel: RatingsViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
-    val ctx = LocalContext.current
-    val appCtx = remember { ctx.applicationContext }
-    val repo = remember(appCtx) { BookRepository(appCtx) }
+    val state by viewModel.uiState.collectAsState()
 
-    val email = AuthLocalStore.lastEmail(appCtx) ?: ""
-    val reviews by repo.reviewsForUser(email).collectAsState(initial = emptyList())
+    var rating by remember { mutableStateOf(0) }
+    var comment by remember { mutableStateOf("") }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Mostrar mensaje cuando se envía review
+    LaunchedEffect(state.reviewSent) {
+        if (state.reviewSent) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Reseña enviada correctamente")
+            }
+            viewModel.clearReviewSentFlag()
+            rating = 0
+            comment = ""
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Calificaciones") },
+                title = { Text("Notas y reseñas") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
                     }
                 }
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         }
     ) { padding ->
-        if (reviews.isEmpty()) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Aún no tienes calificaciones", style = MaterialTheme.typography.titleMedium)
-                Text("Explora un libro y deja tu reseña ⭐️")
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+
+            // 🔒 Bloqueo si NO hay sesión válida
+            if (!isAuthenticated || userId == null) {
+                Text(
+                    text = "Debes iniciar sesión para publicar una reseña.",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Vuelve a la pantalla de inicio, ingresa con tu cuenta y luego entra de nuevo a esta sección.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                return@Column
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+
+            // ===============================
+            // FORMULARIO DE NUEVA RESEÑA
+            // ===============================
+            Text(
+                text = "Publicar nueva reseña",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Rating simple 1–5 (puedes cambiarlo por estrellitas si quieres)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                items(reviews, key = { it.id }) { r ->
-                    ReviewCard(r)
+                (1..5).forEach { value ->
+                    FilterChip(
+                        selected = rating == value,
+                        onClick = { rating = value },
+                        label = { Text("$value ★") }
+                    )
                 }
             }
-        }
-    }
-}
 
-@Composable
-private fun ReviewCard(r: Review) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Libro #${r.bookId}", style = MaterialTheme.typography.labelLarge)
-            // cantidad exacta de estrellas
-            com.example.lucasmatiasminzbook.ui.common.StarDisplay(rating = r.rating, size = 20.dp)
-            if (!r.comment.isNullOrBlank()) {
-                Text(r.comment, style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = comment,
+                onValueChange = { comment = it },
+                label = { Text("Comentario") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    viewModel.createReview(
+                        userId = userId,
+                        rating = rating,
+                        comment = comment
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isLoading &&
+                        rating in 1..5 &&
+                        comment.isNotBlank()
+            ) {
+                Text("Publicar reseña")
             }
-            if (!r.userName.isNullOrBlank()) {
+
+            Spacer(Modifier.height(24.dp))
+
+            // ===============================
+            // LISTA DE RESEÑAS EXISTENTES
+            // ===============================
+            Text(
+                text = "Mis reseñas",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            if (state.isLoading && state.reviews.isEmpty()) {
+                CircularProgressIndicator()
+            } else {
+                LazyColumn {
+                    items(state.reviews) { review ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "${review.rating} ★",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = review.comment,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ===============================
+            // ERRORES
+            // ===============================
+            state.error?.let { errorMsg ->
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    "por ${r.userName}",
-                    style = MaterialTheme.typography.bodySmall
+                    text = errorMsg,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
         }

@@ -16,7 +16,8 @@ interface ReviewDao {
 
     // Promedio de estrellas de un libro (detalle / listado)
     @Query("SELECT AVG(rating * 1.0) FROM reviews WHERE bookId = :bookId")
-    fun averageForBook(bookId: Long): Flow<Double?>
+    fun averageForBook(
+        bookId: Long): Flow<Double?>
 
     // Todas las reseñas de un usuario (pantalla \'Calificaciones\')
     @Query("SELECT * FROM reviews WHERE userEmail = :email ORDER BY createdAt DESC")

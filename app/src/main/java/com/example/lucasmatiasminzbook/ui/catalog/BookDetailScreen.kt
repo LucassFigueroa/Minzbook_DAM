@@ -1,5 +1,5 @@
 package com.example.lucasmatiasminzbook.ui.catalog
-
+import com.example.lucasmatiasminzbook.data.remote.review.ReviewRemoteRepository
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -67,8 +68,9 @@ import java.util.Locale
 @Composable
 fun BookDetailScreen(
     bookId: Long,
+    userId: Long?,            // 👈 viene del AuthViewModel
     onBack: () -> Unit,
-    isAdmin: Boolean = false   // 👈 viene desde MainActivity según rol del AuthService
+    isAdmin: Boolean
 ) {
     val ctx = LocalContext.current
     val repo = remember(ctx.applicationContext) { BookRepository(ctx.applicationContext) }
@@ -76,6 +78,7 @@ fun BookDetailScreen(
     val userRepo = remember(ctx.applicationContext) { UserRepository(ctx.applicationContext) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val reviewRemoteRepo = remember { ReviewRemoteRepository() }
 
     val book by repo.book(bookId).collectAsState(initial = null)
     val avg by repo.averageForBook(bookId).collectAsState(initial = null)
@@ -90,6 +93,7 @@ fun BookDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<Any?>(null) }
 
+    // ============ Diálogo de eliminar ============
     if (showDeleteDialog) {
         var reason by remember { mutableStateOf("") }
         AlertDialog(
@@ -110,9 +114,12 @@ fun BookDetailScreen(
                     if (reason.isNotBlank()) {
                         scope.launch {
                             try {
-                                when (itemToDelete) {
-                                    is Review -> repo.deleteReview(itemToDelete as Review)
-                                    is Long -> deleteBookFromMicroservice(itemToDelete as Long)
+                                when (val item = itemToDelete) {
+                                    is Review -> repo.deleteReview(item)
+                                    is Long -> {
+                                        deleteBookFromMicroservice(item)
+                                        onBack() // Volver atrás después de borrar
+                                    }
                                 }
                             } catch (e: Exception) {
                                 e.printStackTrace()
@@ -145,7 +152,6 @@ fun BookDetailScreen(
                     }
                 },
                 actions = {
-                    // 🔐 Solo ADMIN ve el botón de eliminar libro
                     if (isAdmin) {
                         IconButton(onClick = {
                             itemToDelete = bookId
@@ -345,34 +351,75 @@ fun BookDetailScreen(
                     minLines = 3
                 )
 
-                if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
+                error?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+
                 Spacer(Modifier.height(8.dp))
 
                 Button(
                     onClick = {
                         scope.launch {
                             error = null
-                            val email = AuthLocalStore.lastEmail(ctx)
-                            val name = AuthLocalStore.lastName(ctx) ?: "Usuario"
+
+                            val storedEmail = AuthLocalStore.lastEmail(ctx) ?: ""
+                            val storedName = AuthLocalStore.lastName(ctx) ?: ""
+
                             when {
-                                rating !in 1..5 -> error = "Selecciona de 1 a 5 estrellas"
-                                comment.isBlank() -> error = "Escribe un comentario"
-                                email == null -> error = "Debes iniciar sesión para calificar"
+                                rating !in 1..5 ->
+                                    error = "Selecciona de 1 a 5 estrellas"
+
+                                comment.isBlank() ->
+                                    error = "Escribe un comentario"
+
+                                (userId == null && storedEmail.isBlank()) ->
+                                    error = "Debes iniciar sesión para calificar"
+
                                 else -> {
                                     sending = true
                                     try {
+                                        val effectiveEmail =
+                                            if (storedEmail.isNotBlank()) storedEmail
+                                            else "user${userId}@minzbook.local"
+
+                                        val effectiveName =
+                                            if (storedName.isNotBlank()) storedName
+                                            else "Usuario"
+
+                                        // 1) Guardar en base local (Room)
                                         repo.addReview(
                                             bookId,
-                                            email,
-                                            name,
+                                            effectiveEmail,
+                                            effectiveName,
                                             rating,
                                             comment.trim()
                                         )
+
+                                        // 2) Guardar en microservicio (REMOTO)
+                                        if (userId != null) {
+                                            try {
+                                                reviewRemoteRepo.createReview(
+                                                    userId = userId,
+                                                    bookId = bookId,
+                                                    rating = rating,
+                                                    comment = comment.trim()
+                                                )
+                                            } catch (e: Exception) {
+                                                // si falla el remoto, no rompemos la app
+                                                e.printStackTrace()
+                                                snackbarHostState.showSnackbar(
+                                                    "Reseña guardada localmente, pero falló el servidor de reseñas."
+                                                )
+                                            }
+                                        }
+
                                         rating = 0
                                         comment = ""
+
                                     } catch (e: Exception) {
-                                        error =
-                                            e.localizedMessage ?: "No se pudo guardar la reseña"
+                                        error = e.localizedMessage
+                                            ?: "No se pudo guardar la reseña"
                                     } finally {
                                         sending = false
                                     }
@@ -381,43 +428,57 @@ fun BookDetailScreen(
                         }
                     },
                     enabled = !sending
-                ) { Text(if (sending) "Enviando..." else "Publicar reseña") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReviewItem(
-    r: Review,
-    canDelete: Boolean,
-    onDelete: () -> Unit
-) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(r.userName, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(8.dp))
-            StarDisplay(rating = r.rating)
-            if (canDelete) {
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Eliminar reseña")
+                ) {
+                    Text(if (sending) "Enviando..." else "Publicar reseña")
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
-        Text(r.comment)
     }
 }
 
-// ========= llamada al microservicio para borrar libro =========
-suspend fun deleteBookFromMicroservice(bookId: Long) {
+/**
+ * Llama al microservicio para eliminar un libro.
+ * ATENCIÓN: La clave de admin está hardcodeada. En una app real, obténla de un lugar seguro.
+ */
+private suspend fun deleteBookFromMicroservice(bookId: Long) {
+    val adminKey = "tu_clave_de_admin_aqui" // <-- REEMPLAZAR!
     withContext(Dispatchers.IO) {
-        // Enviamos rol ADMIN en el header
-        RetrofitClient.catalogApi.deleteBook(bookId, "ADMIN")
+        RetrofitClient.catalogApi.deleteBook(bookId, adminKey)
+    }
+}
+
+/**
+ * Un composable para mostrar una única reseña en la lista.
+ */
+@Composable
+private fun ReviewItem(
+    review: Review,
+    canDelete: Boolean,
+    onDelete: () -> Unit
+) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = review.userName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            if (canDelete) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Eliminar reseña",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+        StarDisplay(rating = review.rating)
+        Spacer(Modifier.height(4.dp))
+        Text(review.comment, style = MaterialTheme.typography.bodyMedium)
     }
 }

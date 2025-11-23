@@ -5,15 +5,22 @@ import com.example.lucasmatiasminzbook.data.remote.auth.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+// ============================================================
+// ESTADO DE AUTENTICACIÓN
+// ============================================================
 data class AuthUiState(
     val isAuthenticated: Boolean = false,
     val userName: String? = null,
     val email: String? = null,
     val role: String? = null,
+    val userId: Long? = null,          // 👈 NECESARIO PARA REVIEWS + SUPPORT
     val isLoading: Boolean = false,
     val error: String? = null
 )
 
+// ============================================================
+// VIEWMODEL
+// ============================================================
 class AuthViewModel(
     private val repository: AuthRepository = AuthRepository()
 ) : ViewModel() {
@@ -24,20 +31,19 @@ class AuthViewModel(
     // ============================================================
     // LOGIN contra microservicio AUTH
     // ============================================================
-    /**
-     * @return null si todo OK, o mensaje de error si falla
-     */
     suspend fun login(email: String, password: String): String? {
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
         return try {
             val user = repository.login(email, password)
 
+            // ⬅ Aquí cargamos TODO lo que viene del microservicio
             _uiState.value = AuthUiState(
                 isAuthenticated = true,
                 userName = "${user.nombre} ${user.apellido}".trim(),
                 email = user.email,
                 role = user.rol,
+                userId = user.id,           // 👈 EL ID SE GUARDA AQUÍ
                 isLoading = false,
                 error = null
             )
@@ -56,14 +62,9 @@ class AuthViewModel(
     // ============================================================
     // REGISTER contra microservicio AUTH
     // ============================================================
-    /**
-     * @param name viene como "Nombre Apellido" desde la UI
-     * @return null si todo OK, o mensaje de error si falla
-     */
     suspend fun register(name: String, email: String, password: String): String? {
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-        // separamos "Nombre Apellido" en nombre y apellido
         val partes = name.trim().split(" ", limit = 2)
         val nombre = partes.getOrNull(0) ?: ""
         val apellido = partes.getOrNull(1) ?: ""
@@ -81,6 +82,7 @@ class AuthViewModel(
                 userName = "${user.nombre} ${user.apellido}".trim(),
                 email = user.email,
                 role = user.rol,
+                userId = user.id,        // 👈 TAMBIÉN AQUÍ
                 isLoading = false,
                 error = null
             )
@@ -97,7 +99,7 @@ class AuthViewModel(
     }
 
     // ============================================================
-    // LOGOUT sencillo (limpia el estado)
+    // LOGOUT → limpia todo el estado
     // ============================================================
     fun logout() {
         _uiState.value = AuthUiState()
