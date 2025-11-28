@@ -4,6 +4,6 @@
         <!-- IP del emulador o de tu PC -->
         <domain includeSubdomains="true">10.0.2.2</domain>
         <!-- Opcional: tu IP local si usas celular físico -->
-        <domain includeSubdomains="true">192.168.0.15</domain>
+        <domain includeSubdomains="true">192.168.1.87</domain>
     </domain-config>
 </network-security-config>
