@@ -7,17 +7,17 @@ import retrofit2.http.*
 
 interface AuthApi {
 
-    @POST("auth/login")
+    @POST("api/auth/login")
     suspend fun login(
         @Body body: UserLoginRequest
     ): UserResponse
 
-    @POST("auth/register")
+    @POST("api/auth/register")
     suspend fun register(
         @Body body: UserRegisterRequest
     ): UserResponse
 
-    @PATCH("auth/role/{id}")
+    @PATCH("api/auth/role/{id}")
     suspend fun assignRole(
         @Path("id") userId: Long,
         @Header("X-ADMIN-KEY") adminKey: String,

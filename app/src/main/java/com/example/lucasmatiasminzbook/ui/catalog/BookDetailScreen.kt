@@ -412,11 +412,14 @@ fun BookDetailScreen(
 }
 
 private suspend fun deleteBookFromMicroservice(bookId: Long) {
-    val adminKey = "tu_clave_de_admin_aqui"
     withContext(Dispatchers.IO) {
-        RetrofitClient.catalogApi.deleteBook(bookId, adminKey)
+        RetrofitClient.catalogApi.deleteBook(
+            id = bookId,
+            role = "ADMIN"   // 👈 AHORA SÍ: El header correcto
+        )
     }
 }
+
 
 @Composable
 private fun ReviewItem(

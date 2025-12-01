@@ -3,32 +3,37 @@ package com.example.lucasmatiasminzbook.data.remote.api
 import com.example.lucasmatiasminzbook.data.remote.dto.BookDto
 import com.example.lucasmatiasminzbook.data.remote.dto.CreateBookRequest
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.DELETE
+import retrofit2.http.PUT
 
 interface CatalogApi {
 
-    // Lista todos los libros del microservicio
-    @GET("catalog/books")
+    @GET("api/catalog/books")
     suspend fun getAllBooks(): List<BookDto>
 
-    // Obtiene un libro por ID
-    @GET("catalog/books/{id}")
+    @GET("api/catalog/books/{id}")
     suspend fun getBookById(
         @Path("id") id: Long
     ): BookDto
 
-    // Crea un libro (JSON normal)
-    @POST("catalog/books")
+    @POST("api/catalog/books")
     suspend fun createBook(
+        @Header("X-ROLE") role: String,
         @Body body: CreateBookRequest
     ): BookDto
 
-    // Elimina un libro, SOLO si X-ROLE = ADMIN
-    @DELETE("catalog/books/{id}")
+    @PUT("api/catalog/books/{id}")
+    suspend fun updateBook(
+        @Path("id") id: Long,
+        @Header("X-ROLE") role: String,
+        @Body body: CreateBookRequest
+    ): BookDto
+
+    @DELETE("api/catalog/books/{id}")
     suspend fun deleteBook(
         @Path("id") id: Long,
         @Header("X-ROLE") role: String

@@ -1,13 +1,10 @@
 package com.example.lucasmatiasminzbook.ui.mybooks
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,20 +22,16 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
-import com.example.lucasmatiasminzbook.data.remote.dto.CreateBookRequest
 import com.example.lucasmatiasminzbook.data.remote.dto.BookDto
+import com.example.lucasmatiasminzbook.data.remote.dto.CreateBookRequest
+import com.example.lucasmatiasminzbook.util.ImageUtils
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,25 +42,36 @@ fun MyBooksScreen(
 ) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     // Campos del formulario
     var title by remember { mutableStateOf("") }
     var author by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var pricePurchase by remember { mutableStateOf("") }
-    var priceRent by remember { mutableStateOf("") }
+    var priceRent by remember { mutableStateOf("") } // sigue local si lo usas después
 
     var error by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
 
-    // Lista local solo para “Mis libros creados”
+    // Imagen seleccionada
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Lista local de libros creados (BookDto)
     val createdBooks = remember { mutableStateListOf<BookDto>() }
+
+    // Picker de galería
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear/Ver Libros") },
+                title = { Text("Crear / Ver Libros") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -85,13 +89,18 @@ fun MyBooksScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
             // ===== FORMULARIO =====
+
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it; error = null; success = null },
+                onValueChange = {
+                    title = it
+                    error = null
+                    success = null
+                },
                 label = { Text("Título") },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -99,7 +108,11 @@ fun MyBooksScreen(
 
             OutlinedTextField(
                 value = author,
-                onValueChange = { author = it; error = null; success = null },
+                onValueChange = {
+                    author = it
+                    error = null
+                    success = null
+                },
                 label = { Text("Autor") },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -107,7 +120,11 @@ fun MyBooksScreen(
 
             OutlinedTextField(
                 value = description,
-                onValueChange = { description = it; error = null; success = null },
+                onValueChange = {
+                    description = it
+                    error = null
+                    success = null
+                },
                 label = { Text("Descripción") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
@@ -116,21 +133,44 @@ fun MyBooksScreen(
 
             OutlinedTextField(
                 value = pricePurchase,
-                onValueChange = { pricePurchase = it.filter { c -> c.isDigit() } },
+                onValueChange = { value ->
+                    pricePurchase = value.filter { c -> c.isDigit() }
+                    error = null
+                    success = null
+                },
                 label = { Text("Precio compra (CLP)") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true
             )
 
+            // Si algún día usas el precio de arriendo
             OutlinedTextField(
                 value = priceRent,
-                onValueChange = { priceRent = it.filter { c -> c.isDigit() } },
-                label = { Text("Precio arriendo 1 semana (CLP)") },
+                onValueChange = { value ->
+                    priceRent = value.filter { c -> c.isDigit() }
+                },
+                label = { Text("Precio arriendo 1 semana (CLP) (solo app)") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true
             )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Botón para elegir portada
+            Button(
+                onClick = { pickImageLauncher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (selectedImageUri != null)
+                        "Cambiar portada (imagen seleccionada)"
+                    else
+                        "Elegir portada"
+                )
+            }
+
             Spacer(Modifier.height(12.dp))
 
             if (error != null) {
@@ -142,14 +182,14 @@ fun MyBooksScreen(
                 Spacer(Modifier.height(4.dp))
             }
 
+            // ===== BOTÓN GUARDAR =====
             Button(
                 onClick = {
-                    // Validaciones básicas
                     val t = title.trim()
                     val a = author.trim()
                     val d = description.trim()
                     val pCompra = pricePurchase.toDoubleOrNull()
-                    // el precio de arriendo lo usas solo en la app local, el microservicio no lo necesita
+
                     if (t.isEmpty() || a.isEmpty() || d.isEmpty() || pCompra == null) {
                         error = "Completa título, autor, descripción y precio de compra"
                         success = null
@@ -162,29 +202,44 @@ fun MyBooksScreen(
 
                     scope.launch {
                         try {
-                            // 1) Llamar al microservicio para CREAR el libro
+                            // Convertir portada a Base64 (si hay)
+                            var coverBase64: String? = null
+                            var coverContentType: String? = null
+
+                            selectedImageUri?.let { uri ->
+                                val result = ImageUtils.uriToBase64(context, uri)
+                                if (result != null) {
+                                    coverBase64 = result.first
+                                    coverContentType = result.second
+                                }
+                            }
+
                             val body = CreateBookRequest(
                                 titulo = t,
                                 autor = a,
-                                categoria = "Personal",     // puedes cambiar la categoría
                                 descripcion = d,
+                                categoria = "Personal",
                                 precio = pCompra,
                                 stock = 1,
-                                imagenUrl = null           // más adelante lo conectamos con imágenes
+                                portadaBase64 = coverBase64,
+                                portadaContentType = coverContentType
                             )
 
-                            val created = RetrofitClient.catalogApi.createBook(body)
+                            // IMPORTANTE: pasar el role explícito
+                            val created = RetrofitClient.catalogApi.createBook(
+                                role = "ADMIN",
+                                body = body
+                            )
 
-                            // 2) Agregar a la lista local de “Mis libros creados”
                             createdBooks.add(created)
 
                             success = "Libro creado correctamente"
-                            // limpiamos formulario
                             title = ""
                             author = ""
                             description = ""
                             pricePurchase = ""
                             priceRent = ""
+                            selectedImageUri = null
 
                             snackbarHostState.showSnackbar("Libro '${created.titulo}' creado")
                         } catch (e: Exception) {
@@ -202,7 +257,7 @@ fun MyBooksScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // ===== LISTA DE LIBROS CREADOS EN ESTA SESIÓN =====
+            // ===== LISTA DE LIBROS CREADOS =====
             Text("Mis libros creados", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
 
