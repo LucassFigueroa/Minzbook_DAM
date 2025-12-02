@@ -5,13 +5,20 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "books")
 data class Book(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0L,
+
     val title: String,
     val author: String,
     val description: String,
-    val coverUri: String? = null,      // URI de la portada (galería/cámara)
-    val coverResourceId: Int? = null, // ID del recurso de portada (precargado)
-    val purchasePrice: Int,     // precio compra
-    val rentPrice: Int,          // precio arriendo semana
-    val creatorEmail: String? = null // gmail del usuario que creó el libro
+
+    // URI local de portada (solo para libros creados desde el celular)
+    val coverUri: String? = null,
+
+    // precios en CLP
+    val purchasePrice: Int,
+    val rentPrice: Int,
+
+    // quién lo creó (opcional)
+    val creatorEmail: String? = null
 )

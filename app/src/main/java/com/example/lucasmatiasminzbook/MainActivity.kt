@@ -60,7 +60,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.nav.Route
 import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
@@ -69,12 +69,12 @@ import com.example.lucasmatiasminzbook.ui.cart.CartViewModel
 import com.example.lucasmatiasminzbook.ui.checkout.CheckoutScreen
 import com.example.lucasmatiasminzbook.ui.catalog.BookDetailScreen
 import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
+
 import com.example.lucasmatiasminzbook.ui.mybooks.MyBooksScreen
 import com.example.lucasmatiasminzbook.ui.profile.ProfileScreen
 import com.example.lucasmatiasminzbook.ui.ratings.RatingsScreen
 import com.example.lucasmatiasminzbook.ui.support.SupportConversationScreen
 import com.example.lucasmatiasminzbook.ui.support.SupportScreen
-import com.example.lucasmatiasminzbook.ui.support.SupportViewModel
 import com.example.lucasmatiasminzbook.ui.theme.MinzbookTheme
 import com.example.lucasmatiasminzbook.viewmodel.AuthUiState
 import com.example.lucasmatiasminzbook.viewmodel.AuthViewModel
@@ -82,7 +82,10 @@ import com.example.lucasmatiasminzbook.viewmodel.AuthViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : FragmentActivity() {
 
-    private val authViewModel: AuthViewModel by viewModels()
+    // 👉 Usamos AppViewModelProvider.Factory para que no truene el ViewModel
+    private val authViewModel: AuthViewModel by viewModels {
+        AppViewModelProvider.Factory
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,6 +94,8 @@ class MainActivity : FragmentActivity() {
             MinzbookTheme {
                 val ui by authViewModel.uiState.collectAsState()
                 val nav = rememberNavController()
+
+                // Carrito
                 val cartViewModel: CartViewModel = viewModel()
                 val cartItems by cartViewModel.cartItems.collectAsState(initial = emptyList())
 
@@ -155,6 +160,7 @@ class MainActivity : FragmentActivity() {
                                     onLoginClick = { nav.navigate(Route.Login.path) }
                                 )
                             }
+
                             composable(Route.Login.path) {
                                 LoginScreen(
                                     onBack = { nav.popBackStack() },
@@ -163,14 +169,13 @@ class MainActivity : FragmentActivity() {
                                         authViewModel.login(email, password)
                                     },
                                     onCredentialsOk = {
-                                        nav.navigate(Route.Menu.path) {
-                                            popUpTo(Route.Home.path) { inclusive = true }
-                                        }
+                                        nav.navigate(Route.Menu.path)
                                     },
                                     rememberInitial = false,
                                     onToggleRemember = { }
                                 )
                             }
+
                             composable(Route.Register.path) {
                                 RegisterScreen(
                                     onBack = { nav.popBackStack() },
@@ -179,12 +184,11 @@ class MainActivity : FragmentActivity() {
                                         authViewModel.register(name, email, password)
                                     },
                                     onRegistered = {
-                                        nav.navigate(Route.Login.path) {
-                                            popUpTo(Route.Register.path) { inclusive = true }
-                                        }
+                                        nav.navigate(Route.Login.path)
                                     }
                                 )
                             }
+
                             composable(Route.Menu.path) {
                                 MinzbookMenu(
                                     userName = ui.userName ?: "Usuario",
@@ -195,21 +199,21 @@ class MainActivity : FragmentActivity() {
                                     onSupport = { nav.navigate(Route.Support.path) },
                                     onLogout = {
                                         authViewModel.logout()
-                                        nav.navigate(Route.Home.path) {
-                                            popUpTo(Route.Menu.path) { inclusive = true }
-                                        }
+                                        nav.navigate(Route.Home.path)
                                     },
                                     onOpenBook = { id: Long ->
                                         nav.navigate("${Route.BookDetail.path}/$id")
                                     }
                                 )
                             }
+
                             composable(Route.Catalog.path) {
                                 CatalogScreen(
                                     onBack = { nav.popBackStack() },
                                     onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
                                 )
                             }
+
                             composable(
                                 route = "${Route.BookDetail.path}/{id}",
                                 arguments = listOf(navArgument("id") { type = NavType.LongType })
@@ -218,7 +222,7 @@ class MainActivity : FragmentActivity() {
 
                                 BookDetailScreen(
                                     bookId = id,
-                                    userId = ui.userId,                 // 👈 AHORA SÍ
+                                    userId = ui.userId,
                                     onBack = { nav.popBackStack() },
                                     isAdmin = ui.role == "ADMIN",
                                     cartViewModel = cartViewModel
@@ -228,12 +232,14 @@ class MainActivity : FragmentActivity() {
                             composable(Route.Profile.path) {
                                 ProfileScreen(onBack = { nav.popBackStack() })
                             }
+
                             composable(Route.MyBooks.path) {
                                 MyBooksScreen(
                                     onBack = { nav.popBackStack() },
                                     onOpenBook = { id -> nav.navigate("${Route.BookDetail.path}/$id") }
                                 )
                             }
+
                             composable(Route.Ratings.path) {
                                 RatingsScreen(
                                     onBack = { nav.popBackStack() },
@@ -246,13 +252,13 @@ class MainActivity : FragmentActivity() {
                                 CartScreen(
                                     onBack = { nav.popBackStack() },
                                     onCheckout = { nav.navigate(Route.Checkout.path) },
-                                    cartViewModel = cartViewModel   // 👈 AQUI SE AGREGA
+                                    cartViewModel = cartViewModel
                                 )
                             }
-                            // 🔹 RUTA DE SOPORTE ACTUALIZADA
+
                             composable(Route.Support.path) {
                                 val canCreateTicket = ui.role != "SUPPORT"
-                                val userIdToUse = if (canCreateTicket) ui.userId else ui.userId  // soporte también tiene id
+                                val userIdToUse = ui.userId
 
                                 SupportScreen(
                                     userId = userIdToUse,
@@ -263,30 +269,30 @@ class MainActivity : FragmentActivity() {
                                     }
                                 )
                             }
+
                             composable(
                                 route = "support_chat/{conversationId}",
                                 arguments = listOf(navArgument("conversationId") { type = NavType.LongType })
                             ) { backStackEntry ->
-                                val conversationId = backStackEntry.arguments?.getLong("conversationId") ?: 0L
+                                val conversationId =
+                                    backStackEntry.arguments?.getLong("conversationId") ?: 0L
 
                                 SupportConversationScreen(
                                     conversationId = conversationId,
-                                    userId = ui.userId,              // el id del usuario logueado (sea soporte o cliente)
+                                    userId = ui.userId,
                                     isSupport = ui.role == "SUPPORT",
                                     onBack = { nav.popBackStack() }
                                 )
                             }
 
                             composable(Route.Checkout.path) {
-                                val cartViewModel: CartViewModel = viewModel()
+                                val checkoutCartViewModel: CartViewModel = viewModel()
 
                                 CheckoutScreen(
                                     onBack = { nav.popBackStack() },
                                     onPaymentSuccess = {
-                                        cartViewModel.clearCart()   // 🧹 vaciar carrito
-                                        nav.navigate(Route.Menu.path) {
-                                            popUpTo(Route.Cart.path) { inclusive = true }
-                                        }
+                                        checkoutCartViewModel.clearCart()
+                                        nav.navigate(Route.Menu.path)
                                     }
                                 )
                             }
@@ -398,6 +404,7 @@ fun MinzbookMenu(
 
         Spacer(Modifier.height(16.dp))
 
+        // ===== Libro del día con coverUri =====
         if (featuredBook != null) {
             Text("Libro del día", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(8.dp))
@@ -408,17 +415,24 @@ fun MinzbookMenu(
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Row(Modifier.padding(16.dp)) {
-                    val painter = if (featuredBook.coverResourceId != null) {
-                        painterResource(id = featuredBook.coverResourceId!!)
+                    val cover = featuredBook.coverUri?.trim()?.trim('"')
+
+                    if (!cover.isNullOrBlank()) {
+                        AsyncImage(
+                            model = cover,
+                            contentDescription = featuredBook.title,
+                            modifier = Modifier.size(width = 100.dp, height = 150.dp),
+                            contentScale = ContentScale.Crop
+                        )
                     } else {
-                        rememberAsyncImagePainter(model = featuredBook.coverUri)
+                        Image(
+                            painter = painterResource(id = R.drawable.minzbook_logo),
+                            contentDescription = "Sin portada",
+                            modifier = Modifier.size(width = 100.dp, height = 150.dp),
+                            contentScale = ContentScale.Crop
+                        )
                     }
-                    Image(
-                        painter = painter,
-                        contentDescription = featuredBook.title,
-                        modifier = Modifier.size(100.dp, 150.dp),
-                        contentScale = ContentScale.Crop
-                    )
+
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text(

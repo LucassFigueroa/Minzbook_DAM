@@ -1,5 +1,6 @@
 package com.example.lucasmatiasminzbook.ui.catalog
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
@@ -28,16 +30,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.lucasmatiasminzbook.R
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.remote.dto.BookDto
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,10 +147,13 @@ private fun BookCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -155,12 +163,19 @@ private fun BookCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
+                // 🔹 URL donde tu microservicio expone el BLOB como imagen
+                val coverUrl =
+                    "http://10.0.2.2:8082/api/catalog/books/${book.id}/cover"
+
                 AsyncImage(
-                    model = book.imagenUrl,
+                    model = coverUrl,
                     contentDescription = "Portada",
                     modifier = Modifier
                         .height(96.dp)
-                        .fillMaxWidth(0.3f)
+                        .fillMaxWidth(0.3f),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = R.drawable.minzbook_logo),
+                    placeholder = painterResource(id = R.drawable.minzbook_logo)
                 )
 
                 Column(Modifier.fillMaxWidth()) {

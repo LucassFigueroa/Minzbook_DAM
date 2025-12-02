@@ -1,46 +1,36 @@
 package com.example.lucasmatiasminzbook.ui
 
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.lucasmatiasminzbook.MinzbookApplication
-import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
-import com.example.lucasmatiasminzbook.data.remote.repository.SupportRepository
-import com.example.lucasmatiasminzbook.ui.checkout.CheckoutViewModel
-import com.example.lucasmatiasminzbook.ui.profile.ProfileViewModel
-import com.example.lucasmatiasminzbook.ui.support.SupportChatViewModel
-import com.example.lucasmatiasminzbook.ui.support.SupportViewModel
+import com.example.lucasmatiasminzbook.viewmodel.AuthViewModel
 
+/**
+ * Fábrica centralizada de ViewModels para la app.
+ *
+ * Se usa así:
+ * private val authViewModel: AuthViewModel by viewModels {
+ *     AppViewModelProvider.Factory
+ * }
+ */
 object AppViewModelProvider {
 
     val Factory = viewModelFactory {
 
-        // 👉 SupportViewModel ahora usa el microservicio remoto (SupportRepository)
+        // 👉 AuthViewModel: como tu ViewModel tiene ctor sin parámetros,
+        // simplemente lo instanciamos así:
         initializer {
-            val supportRepository = SupportRepository(RetrofitClient.supportApi)
-            SupportViewModel(supportRepository)
+            AuthViewModel()
         }
 
-        initializer {
-            CheckoutViewModel(minzbookApplication())
-        }
-
-        initializer {
-            ProfileViewModel(minzbookApplication())
-        }
-
-        initializer {
-            val app = minzbookApplication()
-            val supportRepo = com.example.lucasmatiasminzbook.data.remote.repository.SupportRepository(
-                com.example.lucasmatiasminzbook.data.remote.RetrofitClient.supportApi
-            )
-            SupportChatViewModel(supportRepo)
-        }
-
+        // Si más adelante quieres agregar otros ViewModels con dependencias,
+        // los vas sumando aquí con más `initializer { ... }`
+        //
+        // ejemplo:
+        // initializer {
+        //     SupportViewModel(
+        //         supportRepository = (this[APPLICATION_KEY] as MinzbookApplication)
+        //             .container.supportRepository
+        //     )
+        // }
     }
 }
-
-fun CreationExtras.minzbookApplication(): MinzbookApplication =
-    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
-            as MinzbookApplication)

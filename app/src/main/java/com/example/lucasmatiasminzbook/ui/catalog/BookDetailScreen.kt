@@ -1,6 +1,8 @@
 package com.example.lucasmatiasminzbook.ui.catalog
 
-import androidx.compose.foundation.Image
+import androidx.compose.material3.Text
+
+import android.util.Base64
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +35,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,10 +48,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.lucasmatiasminzbook.AuthLocalStore
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.local.book.Review
@@ -91,6 +95,23 @@ fun BookDetailScreen(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<Any?>(null) }
+
+    // ===== NUEVO: portada remota desde el micro (BLOB -> base64 -> ByteArray) =====
+    var remoteCoverBytes by remember { mutableStateOf<ByteArray?>(null) }
+
+    LaunchedEffect(bookId) {
+        try {
+            val remote = withContext(Dispatchers.IO) {
+                RetrofitClient.catalogApi.getBookById(bookId)
+            }
+            val b64 = remote.portadaBase64
+            if (!b64.isNullOrBlank()) {
+                remoteCoverBytes = Base64.decode(b64, Base64.DEFAULT)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     // ============ Diálogo de eliminar ============
     if (showDeleteDialog) {
@@ -193,13 +214,28 @@ fun BookDetailScreen(
             item {
                 Surface(tonalElevation = 2.dp, shape = MaterialTheme.shapes.medium) {
                     val cover = book!!.coverUri?.trim()?.trim('"')
-                    val resId = book!!.coverResourceId
+                    val blobBytes = remoteCoverBytes
 
                     when {
+                        // 1) BLOB desde el microservicio
+                        blobBytes != null -> {
+                            AsyncImage(
+                                model = ImageRequest.Builder(ctx)
+                                    .data(blobBytes)
+                                    .build(),
+                                contentDescription = "Portada remota",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        // 2) URI local (libro creado en el cel)
                         !cover.isNullOrBlank() -> {
                             AsyncImage(
                                 model = cover,
-                                contentDescription = "Portada",
+                                contentDescription = "Portada local",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(300.dp),
@@ -207,17 +243,7 @@ fun BookDetailScreen(
                             )
                         }
 
-                        resId != null -> {
-                            Image(
-                                painter = painterResource(id = resId),
-                                contentDescription = "Portada",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(300.dp),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-
+                        // 3) Nada → placeholder
                         else -> {
                             Box(
                                 modifier = Modifier
@@ -380,7 +406,6 @@ fun BookDetailScreen(
                                             if (storedName.isNotBlank()) storedName
                                             else "Usuario"
 
-                                        // Guardar reseña en base local
                                         repo.addReview(
                                             bookId = bookId,
                                             userEmail = effectiveEmail,
@@ -415,11 +440,10 @@ private suspend fun deleteBookFromMicroservice(bookId: Long) {
     withContext(Dispatchers.IO) {
         RetrofitClient.catalogApi.deleteBook(
             id = bookId,
-            role = "ADMIN"   // 👈 AHORA SÍ: El header correcto
+            role = "ADMIN"
         )
     }
 }
-
 
 @Composable
 private fun ReviewItem(

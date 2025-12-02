@@ -18,17 +18,15 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE creatorEmail = :email")
     fun getByUser(email: String): Flow<List<Book>>
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(book: Book): Long
-
-
-    @Query("DELETE FROM books")
-    suspend fun clear()
-
-    @Query("DELETE FROM books WHERE id = :id")
-    suspend fun deleteById(id: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(books: List<Book>)
 
+    @Query("DELETE FROM books WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM books")
+    suspend fun clear()
 }

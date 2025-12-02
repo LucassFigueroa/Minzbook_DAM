@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.lucasmatiasminzbook"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -56,6 +56,9 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation(libs.androidx.material3)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.compose.material3)
+    implementation(libs.androidx.tv.material)
+    implementation(libs.androidx.compose.material)
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
 
     // Compose (sin versiones explícitas; las toma del BOM)
