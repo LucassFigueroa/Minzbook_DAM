@@ -2,6 +2,7 @@ package com.example.lucasmatiasminzbook.ui.support
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
 import com.example.lucasmatiasminzbook.data.remote.repository.SupportRepository
 import com.example.lucasmatiasminzbook.data.remote.support.SupportMessageDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,12 +14,14 @@ data class SupportChatUiState(
     val messages: List<SupportMessageDto> = emptyList(),
     val sending: Boolean = false,
     val closing: Boolean = false,
-    val ticketClosed: Boolean = false,   // 👈 NUEVO: para avisar que se cerró
+    val ticketClosed: Boolean = false,
     val error: String? = null
 )
 
 class SupportChatViewModel(
-    private val repository: SupportRepository
+    private val repository: SupportRepository = SupportRepository(
+        RetrofitClient.supportApi          // 👈 igual que en SupportViewModel
+    )
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SupportChatUiState())
@@ -47,7 +50,7 @@ class SupportChatViewModel(
             try {
                 _uiState.value = _uiState.value.copy(sending = true, error = null)
                 repository.sendMessage(conversationId, userId, contenido)
-                // recargar mensajes después de enviar
+
                 val msgs = repository.getMessages(conversationId)
                 _uiState.value = _uiState.value.copy(
                     sending = false,

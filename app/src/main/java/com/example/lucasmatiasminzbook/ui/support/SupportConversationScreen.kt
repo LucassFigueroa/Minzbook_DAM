@@ -7,11 +7,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.lucasmatiasminzbook.data.remote.support.SupportMessageDto
-import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -21,7 +23,7 @@ fun SupportConversationScreen(
     userId: Long?,                 // quién escribe (cliente o soporte)
     isSupport: Boolean,            // true si es rol SUPPORT
     onBack: () -> Unit,
-    viewModel: SupportChatViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    viewModel: SupportChatViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     var newMessage by remember { mutableStateOf("") }
@@ -34,7 +36,7 @@ fun SupportConversationScreen(
         viewModel.loadMessages(conversationId)
     }
 
-    // Mostrar errores
+    // Mostrar errores como snackbar
     LaunchedEffect(state.error) {
         state.error?.let { msg ->
             scope.launch { snackbarHostState.showSnackbar(msg) }
@@ -45,7 +47,7 @@ fun SupportConversationScreen(
     LaunchedEffect(state.ticketClosed) {
         if (state.ticketClosed) {
             scope.launch {
-                snackbarHostState.showSnackbar("Ticket cerrado correctamente")
+                snackbarHostState.showSnackbar("Ticket cerrado correctamente ✅")
             }
             viewModel.clearTicketClosedFlag()
             onBack()
@@ -55,7 +57,9 @@ fun SupportConversationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ticket #$conversationId") },
+                title = {
+                    Text("Ticket #$conversationId")
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -65,11 +69,10 @@ fun SupportConversationScreen(
                     }
                 },
                 actions = {
+                    // Solo el rol SUPPORT puede cerrar el ticket
                     if (isSupport) {
                         TextButton(
-                            onClick = {
-                                viewModel.closeConversation(conversationId)
-                            },
+                            onClick = { viewModel.closeConversation(conversationId) },
                             enabled = !state.closing
                         ) {
                             Text("Marcar resuelto")
@@ -86,33 +89,65 @@ fun SupportConversationScreen(
                 .fillMaxSize()
         ) {
 
-            // Lista de mensajes
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                items(state.messages) { msg ->
-                    MessageBubble(
-                        message = msg,
-                        isMine = (userId != null && msg.userId == userId)
+            // Lista de mensajes (chat)
+            if (state.isLoading && state.messages.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (state.messages.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Aún no hay mensajes en este ticket.\nEscribe el primero ✉️",
+                        textAlign = TextAlign.Center
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    reverseLayout = false
+                ) {
+                    items(state.messages) { msg ->
+                        val isMine = userId != null && msg.userId == userId
+
+                        MessageBubble(
+                            message = msg,
+                            isMine = isMine,
+                            isSupport = isSupport
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
 
             // Caja para escribir mensaje (solo si tenemos userId)
             if (userId != null) {
+                Divider()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
                         value = newMessage,
                         onValueChange = { newMessage = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("Escribir mensaje") }
+                        label = { Text("Escribir mensaje") },
+                        maxLines = 3
                     )
                     Spacer(Modifier.width(8.dp))
                     Button(
@@ -121,7 +156,7 @@ fun SupportConversationScreen(
                                 viewModel.sendMessage(
                                     conversationId = conversationId,
                                     userId = userId,
-                                    contenido = newMessage
+                                    contenido = newMessage.trim()
                                 )
                                 newMessage = ""
                             }
@@ -139,29 +174,53 @@ fun SupportConversationScreen(
 @Composable
 private fun MessageBubble(
     message: SupportMessageDto,
-    isMine: Boolean
+    isMine: Boolean,
+    isSupport: Boolean
 ) {
-    Column(
+    // Alineamos tipo WhatsApp: mis mensajes a la derecha, los otros a la izquierda
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 2.dp),
+        horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start
     ) {
-        Text(
-            text = if (isMine) "Tú:" else "User ${message.userId}:",
-            style = MaterialTheme.typography.labelSmall
-        )
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = if (isMine)
-                MaterialTheme.colorScheme.primaryContainer
-            else
-                MaterialTheme.colorScheme.surfaceVariant
+        Column(
+            horizontalAlignment = if (isMine) Alignment.End else Alignment.Start,
+            modifier = Modifier
+                .widthIn(max = 280.dp)
         ) {
+            val label = when {
+                isMine && isSupport -> "Soporte:"
+                isMine -> "Tú:"
+                else -> "User ${message.userId}:"
+            }
+
             Text(
-                text = message.contenido,
-                modifier = Modifier.padding(8.dp),
-                style = MaterialTheme.typography.bodyMedium
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold
             )
+
+            val bubbleColor = when {
+                isMine && isSupport ->
+                    MaterialTheme.colorScheme.primary   // Soporte = burbuja verde/primaria
+                isMine && !isSupport ->
+                    MaterialTheme.colorScheme.secondary  // Cliente = otro color para sus mensajes
+                else ->
+                    MaterialTheme.colorScheme.surfaceVariant // el otro lado = grisito
+            }
+
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = bubbleColor,
+                tonalElevation = 2.dp
+            ) {
+                Text(
+                    text = message.contenido,
+                    modifier = Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }

@@ -52,6 +52,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -69,7 +70,6 @@ import com.example.lucasmatiasminzbook.ui.cart.CartViewModel
 import com.example.lucasmatiasminzbook.ui.checkout.CheckoutScreen
 import com.example.lucasmatiasminzbook.ui.catalog.BookDetailScreen
 import com.example.lucasmatiasminzbook.ui.catalog.CatalogScreen
-
 import com.example.lucasmatiasminzbook.ui.mybooks.MyBooksScreen
 import com.example.lucasmatiasminzbook.ui.profile.ProfileScreen
 import com.example.lucasmatiasminzbook.ui.ratings.RatingsScreen
@@ -191,8 +191,6 @@ class MainActivity : FragmentActivity() {
 
                             composable(Route.Menu.path) {
                                 MinzbookMenu(
-                                    userName = ui.userName ?: "Usuario",
-                                    role = ui.role,
                                     onExplore = { nav.navigate(Route.Catalog.path) },
                                     onMyBooks = { nav.navigate(Route.MyBooks.path) },
                                     onRatings = { nav.navigate(Route.Ratings.path) },
@@ -224,7 +222,7 @@ class MainActivity : FragmentActivity() {
                                     bookId = id,
                                     userId = ui.userId,
                                     onBack = { nav.popBackStack() },
-                                    isAdmin = ui.role == "ADMIN",
+                                    isAdmin = ui.role?.contains("ADMIN", ignoreCase = true) == true,
                                     cartViewModel = cartViewModel
                                 )
                             }
@@ -256,13 +254,15 @@ class MainActivity : FragmentActivity() {
                                 )
                             }
 
+                            // 🔹 SOPORTE (cliente + rol SUPPORT)
                             composable(Route.Support.path) {
-                                val canCreateTicket = ui.role != "SUPPORT"
                                 val userIdToUse = ui.userId
+                                // AQUÍ corregimos el nombre del rol: ROLE_SUPPORT
+                                val isSupport = ui.role?.contains("SUPPORT", ignoreCase = true) == true
 
                                 SupportScreen(
                                     userId = userIdToUse,
-                                    canCreateTicket = canCreateTicket,
+                                    isSupport = isSupport,
                                     onBack = { nav.popBackStack() },
                                     onOpenTicket = { conversationId ->
                                         nav.navigate("support_chat/$conversationId")
@@ -270,6 +270,7 @@ class MainActivity : FragmentActivity() {
                                 )
                             }
 
+                            // 🔹 CHAT / CONVERSACIÓN DE SOPORTE
                             composable(
                                 route = "support_chat/{conversationId}",
                                 arguments = listOf(navArgument("conversationId") { type = NavType.LongType })
@@ -280,7 +281,7 @@ class MainActivity : FragmentActivity() {
                                 SupportConversationScreen(
                                     conversationId = conversationId,
                                     userId = ui.userId,
-                                    isSupport = ui.role == "SUPPORT",
+                                    isSupport = ui.role?.contains("SUPPORT", ignoreCase = true) == true,
                                     onBack = { nav.popBackStack() }
                                 )
                             }
@@ -340,7 +341,7 @@ fun MinzbookHome(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "Bienvenido a Minzbook, una aplicacion donde podras comprar nuevos libros, arrendar o incluso puedes hacer libros tu mismo!, esperamos que disfrutes tu experiencia 🥑📗✅!",
+                            "Bienvenido a Minzbook, una aplicacion donde podras comprar nuevos libros, arrendar o incluso puedes hacer libros tu mismo!, esperamos que disfrutes tu experiencia 💚💚💚 !",
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.titleMedium
                         )
@@ -369,8 +370,6 @@ fun MinzbookHome(
 
 @Composable
 fun MinzbookMenu(
-    userName: String,
-    role: String?,
     onExplore: () -> Unit,
     onMyBooks: () -> Unit,
     onRatings: () -> Unit,
@@ -382,29 +381,13 @@ fun MinzbookMenu(
     val books by repo.books().collectAsState(initial = emptyList())
     val featuredBook = remember(books) { books.randomOrNull() }
 
-    val isAdmin = role == "ADMIN"
-    val isSupport = role == "SUPPORT"
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Bienvenido, $userName", style = MaterialTheme.typography.headlineSmall)
-
-        role?.let {
-            val rolTexto = when (it) {
-                "ADMIN" -> "Administrador"
-                "SUPPORT" -> "Soporte"
-                "USER" -> "Usuario"
-                else -> it
-            }
-            Text("Rol: $rolTexto", style = MaterialTheme.typography.bodyMedium)
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // ===== Libro del día con coverUri =====
+        // ===== Libro del día =====
         if (featuredBook != null) {
             Text("Libro del día", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(8.dp))
@@ -414,30 +397,25 @@ fun MinzbookMenu(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Row(Modifier.padding(16.dp)) {
-                    val cover = featuredBook.coverUri?.trim()?.trim('"')
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val coverUrl = "http://10.0.2.2:8082/api/catalog/books/${featuredBook.id}/cover"
 
-                    if (!cover.isNullOrBlank()) {
-                        AsyncImage(
-                            model = cover,
-                            contentDescription = featuredBook.title,
-                            modifier = Modifier.size(width = 100.dp, height = 150.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.minzbook_logo),
-                            contentDescription = "Sin portada",
-                            modifier = Modifier.size(width = 100.dp, height = 150.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+                    AsyncImage(
+                        model = coverUrl,
+                        placeholder = painterResource(id = R.drawable.minzbook_logo),
+                        error = painterResource(id = R.drawable.minzbook_logo),
+                        contentDescription = featuredBook.title,
+                        modifier = Modifier.size(width = 100.dp, height = 150.dp),
+                        contentScale = ContentScale.Crop
+                    )
 
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text(
                             featuredBook.title,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             featuredBook.author,
@@ -447,8 +425,6 @@ fun MinzbookMenu(
                 }
             }
         }
-
-        Spacer(Modifier.height(16.dp))
 
         Text("Añadidos recientemente", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
@@ -460,25 +436,38 @@ fun MinzbookMenu(
                 Card(
                     onClick = { onOpenBook(book.id) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    modifier = Modifier.width(150.dp)
+                    modifier = Modifier.width(100.dp)
                 ) {
-                    Column(Modifier.padding(8.dp)) {
-                        Text(
-                            book.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 2
+                    Column {
+                        val coverUrl = "http://10.0.2.2:8082/api/catalog/books/${book.id}/cover"
+                        AsyncImage(
+                            model = coverUrl,
+                            contentDescription = book.title,
+                            modifier = Modifier
+                                .height(120.dp)
+                                .fillMaxWidth(),
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = R.drawable.minzbook_logo),
+                            error = painterResource(id = R.drawable.minzbook_logo)
                         )
-                        Text(
-                            book.author,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1
-                        )
+                        Column(Modifier.padding(8.dp)) {
+                            Text(
+                                book.title,
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                book.author,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
         }
-
-        Spacer(Modifier.height(16.dp))
 
         Column(
             Modifier.fillMaxWidth(),

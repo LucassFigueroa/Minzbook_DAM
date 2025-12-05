@@ -48,7 +48,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.lucasmatiasminzbook.AuthLocalStore
 import com.example.lucasmatiasminzbook.data.local.purchase.Purchase
-import com.example.lucasmatiasminzbook.ui.AppViewModelProvider
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,7 +56,7 @@ import java.util.Locale
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
-    viewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    viewModel: ProfileViewModel = viewModel()   // 👈 SIN factory custom
 ) {
     val ctx = LocalContext.current
     val purchases by viewModel.purchases.collectAsState()
@@ -99,7 +98,9 @@ fun ProfileScreen(
             item {
                 Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
                     Image(
-                        painter = rememberAsyncImagePainter(model = photo?.let(Uri::parse)),
+                        painter = rememberAsyncImagePainter(
+                            model = photo?.let(Uri::parse)
+                        ),
                         contentDescription = "Foto de perfil",
                         modifier = Modifier.size(120.dp),
                         contentScale = ContentScale.Crop

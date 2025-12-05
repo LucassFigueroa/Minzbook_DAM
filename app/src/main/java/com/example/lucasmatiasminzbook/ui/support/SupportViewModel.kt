@@ -2,6 +2,7 @@ package com.example.lucasmatiasminzbook.ui.support
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
 import com.example.lucasmatiasminzbook.data.remote.repository.SupportRepository
 import com.example.lucasmatiasminzbook.data.remote.support.SupportConversationDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,13 +17,14 @@ data class SupportUiState(
 )
 
 class SupportViewModel(
-    private val repository: SupportRepository
+    private val repository: SupportRepository = SupportRepository(
+        RetrofitClient.supportApi           // 👈 MUY IMPORTANTE
+    )
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SupportUiState())
     val uiState: StateFlow<SupportUiState> = _uiState
 
-    // Cliente normal: carga solo sus tickets
     fun loadUserTickets(userId: Long) {
         viewModelScope.launch {
             try {
@@ -41,7 +43,6 @@ class SupportViewModel(
         }
     }
 
-    // SUPPORT: ver todos los tickets
     fun loadAllTickets() {
         viewModelScope.launch {
             try {
@@ -60,7 +61,6 @@ class SupportViewModel(
         }
     }
 
-    // Crear ticket = crear conversación (solo clientes, no soporte)
     fun createTicket(
         userId: Long?,
         email: String,
