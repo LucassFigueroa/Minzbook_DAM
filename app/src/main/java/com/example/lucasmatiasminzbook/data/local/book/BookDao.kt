@@ -13,7 +13,7 @@ interface BookDao {
     fun getAll(): Flow<List<Book>>
 
     @Query("SELECT * FROM books WHERE id = :id")
-    fun getById(id: Long): Flow<Book?>
+    fun getBookById(id: Long): Flow<Book?>
 
     @Query("SELECT * FROM books WHERE creatorEmail = :email")
     fun getByUser(email: String): Flow<List<Book>>
@@ -28,5 +28,5 @@ interface BookDao {
     suspend fun deleteById(id: Long)
 
     @Query("DELETE FROM books")
-    suspend fun clear()
+    suspend fun deleteAll()
 }

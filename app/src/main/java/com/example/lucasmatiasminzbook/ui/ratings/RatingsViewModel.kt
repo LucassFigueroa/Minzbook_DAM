@@ -3,15 +3,15 @@ package com.example.lucasmatiasminzbook.ui.ratings
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.lucasmatiasminzbook.network.ApiClient
-import com.example.lucasmatiasminzbook.network.ReviewApi
-import com.example.lucasmatiasminzbook.network.ReviewResponseDto
+import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
+import com.example.lucasmatiasminzbook.data.remote.api.ReviewApi
+import com.example.lucasmatiasminzbook.data.remote.api.ReviewResponseDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class RatingsViewModel(
-    private val api: ReviewApi = ApiClient.reviewApi
+    private val api: ReviewApi = RetrofitClient.reviewApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RatingsUiState())
@@ -30,7 +30,7 @@ class RatingsViewModel(
                         bookId = dto.bookId,
                         rating = dto.rating,
                         comment = dto.comment,
-                        fecha = dto.fechaCreacion
+                        fecha = dto.fechaCreacion ?: ""
                     )
                 }
 

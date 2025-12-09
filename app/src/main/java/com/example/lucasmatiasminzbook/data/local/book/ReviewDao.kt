@@ -27,6 +27,9 @@ interface ReviewDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(review: Review): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(reviews: List<Review>)
+
     // (Opcional) limpiar tabla en pruebas
     @Query("DELETE FROM reviews")
     suspend fun deleteAll()

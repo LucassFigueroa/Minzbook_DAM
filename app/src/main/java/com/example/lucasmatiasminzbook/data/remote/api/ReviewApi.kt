@@ -38,4 +38,7 @@ interface ReviewApi {
     suspend fun getReviewsByBook(
         @Path("bookId") bookId: Long
     ): List<ReviewResponseDto>
+
+    @GET("reviews/user/{userId}")
+    suspend fun getReviewsByUser(@Path("userId") userId: Long): List<ReviewResponseDto>
 }

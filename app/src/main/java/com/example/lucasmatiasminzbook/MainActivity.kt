@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
@@ -136,6 +137,16 @@ class MainActivity : FragmentActivity() {
                                         Icon(
                                             Icons.Filled.AccountCircle,
                                             contentDescription = "Perfil",
+                                            tint = Color.White
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        authViewModel.logout()
+                                        nav.navigate(Route.Home.path)
+                                    }) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.Logout,
+                                            contentDescription = "Cerrar sesión",
                                             tint = Color.White
                                         )
                                     }

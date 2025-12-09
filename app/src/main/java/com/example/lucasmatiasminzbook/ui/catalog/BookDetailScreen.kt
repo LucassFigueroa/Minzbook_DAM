@@ -32,10 +32,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -113,7 +111,7 @@ fun BookDetailScreen(
         }
     }
 
-    // ============ Diálogo de eliminar ============
+    // ============ Diálogo de eliminar ============    
     if (showDeleteDialog) {
         var reason by remember { mutableStateOf("") }
         AlertDialog(
@@ -341,7 +339,7 @@ fun BookDetailScreen(
                 items(reviews, key = { it.createdAt }) { r ->
                     ReviewItem(
                         review = r,
-                        canDelete = user?.role == Role.MODERATOR
+                        canDelete = isAdmin || user?.role == Role.MODERATOR
                     ) {
                         itemToDelete = r
                         showDeleteDialog = true
@@ -406,17 +404,21 @@ fun BookDetailScreen(
                                             if (storedName.isNotBlank()) storedName
                                             else "Usuario"
 
-                                        repo.addReview(
-                                            bookId = bookId,
-                                            userEmail = effectiveEmail,
-                                            userName = effectiveName,
-                                            rating = rating,
-                                            comment = comment.trim()
-                                        )
+                                        if (userId == null) {
+                                            error = "No se ha podido identificar al usuario para enviar la reseña."
+                                        } else {
+                                            repo.addReview(
+                                                bookId = bookId,
+                                                userId = userId,
+                                                userEmail = effectiveEmail,
+                                                userName = effectiveName,
+                                                rating = rating,
+                                                comment = comment.trim()
+                                            )
 
-                                        rating = 0
-                                        comment = ""
-
+                                            rating = 0
+                                            comment = ""
+                                        }
                                     } catch (e: Exception) {
                                         error = e.localizedMessage
                                             ?: "No se pudo guardar la reseña"
