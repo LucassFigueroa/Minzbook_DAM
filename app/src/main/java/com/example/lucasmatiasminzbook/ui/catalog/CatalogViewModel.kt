@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.lucasmatiasminzbook.data.local.book.Book
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
-import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
+import com.example.lucasmatiasminzbook.data.remote.api.CatalogApi
 import com.example.lucasmatiasminzbook.data.remote.dto.BookDto
 import com.example.lucasmatiasminzbook.data.remote.dto.toLocalBook
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,8 @@ data class CatalogUiState(
 )
 
 class CatalogViewModel(
-    private val localRepo: BookRepository
+    private val localRepo: BookRepository,
+    private val catalogApi: CatalogApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CatalogUiState())
@@ -30,7 +31,7 @@ class CatalogViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
                 // 1) Traemos libros del microservicio (remoto)
-                val remote: List<BookDto> = RetrofitClient.catalogApi.getAllBooks()
+                val remote: List<BookDto> = catalogApi.getAllBooks()
 
                 // 2) Los convertimos a entidad local Book (Room)
                 val localBooks: List<Book> = remote.map { it.toLocalBook() }
@@ -55,12 +56,13 @@ class CatalogViewModel(
 }
 
 class CatalogViewModelFactory(
-    private val repo: BookRepository
+    private val repo: BookRepository,
+    private val api: CatalogApi
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(CatalogViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return CatalogViewModel(repo) as T
+            return CatalogViewModel(repo, api) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

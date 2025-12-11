@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.lucasmatiasminzbook.R
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
+import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
 import com.example.lucasmatiasminzbook.data.remote.dto.BookDto
 import java.text.NumberFormat
 import java.util.Currency
@@ -51,9 +52,10 @@ fun CatalogScreen(
 ) {
     val ctx = LocalContext.current
     val localRepo = BookRepository(ctx)
+    val catalogApi = RetrofitClient.catalogApi
 
     val viewModel: CatalogViewModel = viewModel(
-        factory = CatalogViewModelFactory(localRepo)
+        factory = CatalogViewModelFactory(localRepo, catalogApi)
     )
 
     val uiState by viewModel.uiState.collectAsState()

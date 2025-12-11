@@ -1,5 +1,6 @@
 package com.example.lucasmatiasminzbook.ui.profile
 
+import android.app.Application
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -48,6 +49,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.lucasmatiasminzbook.AuthLocalStore
 import com.example.lucasmatiasminzbook.data.local.purchase.Purchase
+import com.example.lucasmatiasminzbook.data.local.purchase.PurchaseRepository
+import com.example.lucasmatiasminzbook.data.local.user.UserRepository
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,10 +58,16 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    onBack: () -> Unit,
-    viewModel: ProfileViewModel = viewModel()   // 👈 SIN factory custom
+    onBack: () -> Unit
 ) {
     val ctx = LocalContext.current
+    val app = ctx.applicationContext as Application
+    val purchaseRepository = remember { PurchaseRepository(app) }
+    val userRepository = remember { UserRepository(app) }
+    val viewModel: ProfileViewModel = viewModel(
+        factory = ProfileViewModelFactory(app, purchaseRepository, userRepository)
+    )
+
     val purchases by viewModel.purchases.collectAsState()
 
     var name by remember { mutableStateOf(AuthLocalStore.lastName(ctx) ?: "Usuario") }
