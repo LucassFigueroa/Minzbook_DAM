@@ -250,11 +250,12 @@ class MainActivity : FragmentActivity() {
                             }
 
                             composable(Route.Ratings.path) {
-                                RatingsScreen(
-                                    onBack = { nav.popBackStack() },
-                                    isAuthenticated = ui.isAuthenticated,
-                                    userId = ui.userId
-                                )
+                                if (ui.isAuthenticated && ui.userId != null) {
+                                    RatingsScreen(
+                                        onBack = { nav.popBackStack() },
+                                        userId = ui.userId!!
+                                    )
+                                }
                             }
 
                             composable(Route.Cart.path) {

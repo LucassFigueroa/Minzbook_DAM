@@ -4,11 +4,16 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.example.lucasmatiasminzbook.data.local.book.BookRepository
 import com.example.lucasmatiasminzbook.data.remote.api.CatalogApi
 import com.example.lucasmatiasminzbook.data.remote.dto.BookDto
-import com.example.lucasmatiasminzbook.util.MainCoroutineRule
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
@@ -20,8 +25,7 @@ class CatalogViewModelTest {
     @get:Rule
     var instantExecutorRule = InstantTaskExecutorRule()
 
-    @get:Rule
-    var mainCoroutineRule = MainCoroutineRule()
+    private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var catalogViewModel: CatalogViewModel
     private val bookRepository: BookRepository = mockk(relaxed = true)
@@ -29,7 +33,13 @@ class CatalogViewModelTest {
 
     @Before
     fun onBefore() {
+        Dispatchers.setMain(testDispatcher)
         catalogViewModel = CatalogViewModel(bookRepository, catalogApi)
+    }
+
+    @After
+    fun onAfter() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -53,11 +63,12 @@ class CatalogViewModelTest {
 
         // When
         catalogViewModel.loadBooks()
+        advanceUntilIdle()
 
         // Then
         val uiState = catalogViewModel.uiState.value
-        assert(!uiState.isLoading)
-        assert(uiState.error == null)
+        Assert.assertFalse(uiState.isLoading)
+        Assert.assertNull(uiState.error)
         Assert.assertEquals(fakeBooks, uiState.books)
     }
 
@@ -69,10 +80,11 @@ class CatalogViewModelTest {
 
         // When
         catalogViewModel.loadBooks()
+        advanceUntilIdle()
 
         // Then
         val uiState = catalogViewModel.uiState.value
-        assert(!uiState.isLoading)
+        Assert.assertFalse(uiState.isLoading)
         Assert.assertEquals(errorMessage, uiState.error)
     }
 }

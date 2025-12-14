@@ -4,11 +4,16 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.example.lucasmatiasminzbook.data.remote.api.ReviewApi
 import com.example.lucasmatiasminzbook.data.remote.api.ReviewResponseDto
 import com.example.lucasmatiasminzbook.ui.ratings.RatingsViewModel
-import com.example.lucasmatiasminzbook.util.MainCoroutineRule
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
@@ -20,15 +25,19 @@ class ReviewViewModelTest {
     @get:Rule
     var instantExecutorRule = InstantTaskExecutorRule()
 
-    @get:Rule
-    var mainCoroutineRule = MainCoroutineRule()
-
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var ratingsViewModel: RatingsViewModel
     private val reviewApi: ReviewApi = mockk()
 
     @Before
     fun onBefore() {
+        Dispatchers.setMain(testDispatcher)
         ratingsViewModel = RatingsViewModel(reviewApi)
+    }
+
+    @After
+    fun onAfter() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -40,11 +49,12 @@ class ReviewViewModelTest {
 
         // When
         ratingsViewModel.loadUserRatings(userId)
+        advanceUntilIdle()
 
         // Then
         val uiState = ratingsViewModel.uiState.value
-        assert(!uiState.isLoading)
-        assert(uiState.errorMessage == null)
+        Assert.assertFalse(uiState.isLoading)
+        Assert.assertNull(uiState.errorMessage)
         Assert.assertEquals(1, uiState.reviews.size)
         Assert.assertEquals("Great book!", uiState.reviews.first().comment)
     }
@@ -58,10 +68,11 @@ class ReviewViewModelTest {
 
         // When
         ratingsViewModel.loadUserRatings(userId)
+        advanceUntilIdle()
 
         // Then
         val uiState = ratingsViewModel.uiState.value
-        assert(!uiState.isLoading)
+        Assert.assertFalse(uiState.isLoading)
         Assert.assertEquals("No se pudieron cargar tus reseñas", uiState.errorMessage)
     }
 }

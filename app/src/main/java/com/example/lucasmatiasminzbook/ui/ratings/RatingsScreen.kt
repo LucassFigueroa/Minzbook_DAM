@@ -1,100 +1,103 @@
 package com.example.lucasmatiasminzbook.ui.ratings
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
+import com.example.lucasmatiasminzbook.ui.common.StarDisplay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RatingsScreen(
-    onBack: () -> Unit,
-    isAuthenticated: Boolean,
-    userId: Long?
+    userId: Long,
+    onBack: () -> Unit
 ) {
-    val vm: RatingsViewModel = viewModel()
-    val state by vm.uiState.collectAsState()
+    val viewModel: RatingsViewModel = viewModel(
+        factory = RatingsViewModelFactory(RetrofitClient.reviewApi)
+    )
+    val uiState by viewModel.uiState.collectAsState()
 
-    // 1) si no está logeado, mostramos mensaje y listo (no crashea)
-    if (!isAuthenticated) {
-        NotLoggedInScreen(onBack)
-        return
-    }
-
-    // 2) si userId viene null por alguna razón, tampoco crashea
-    if (userId == null) {
-        MissingUserIdScreen(onBack)
-        return
-    }
-
-    // 3) cargamos reseñas sólo cuando tenemos userId válido
     LaunchedEffect(userId) {
-        vm.loadUserRatings(userId)
+        viewModel.loadUserRatings(userId)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mis notas") },
+                title = { Text("Mis Calificaciones") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Volver"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
         }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            when {
-                state.isLoading -> {
-                    CircularProgressIndicator()
+    ) { padding ->
+        if (uiState.isLoading) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CircularProgressIndicator()
+                Text("Cargando...", modifier = Modifier.padding(top = 8.dp))
+            }
+        } else if (uiState.errorMessage != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Error: ${uiState.errorMessage}")
+                TextButton(onClick = { viewModel.loadUserRatings(userId) }) {
+                    Text("Reintentar")
                 }
-
-                state.errorMessage != null -> {
-                    Text(text = state.errorMessage ?: "Error desconocido")
-                }
-
-                state.reviews.isEmpty() -> {
-                    Text("Todavía no has publicado reseñas.")
-                }
-
-                else -> {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(state.reviews) { review ->
-                            Card {
-                                Column(Modifier.padding(12.dp)) {
-                                    Text(
-                                        text = "Libro ID: ${review.bookId}",
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text("⭐ ${review.rating}/5")
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(review.comment)
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = "Fecha: ${review.fecha}",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (uiState.reviews.isEmpty()) {
+                    item {
+                        Text("Aún no has dejado ninguna reseña.")
+                    }
+                } else {
+                    items(uiState.reviews) { review ->
+                        ReviewItem(review)
                     }
                 }
             }
@@ -103,31 +106,19 @@ fun RatingsScreen(
 }
 
 @Composable
-private fun NotLoggedInScreen(onBack: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+fun ReviewItem(review: UserReviewUi) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
-        Text("Debes iniciar sesión para ver tus notas.")
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = onBack) {
-            Text("Volver")
-        }
-    }
-}
-
-@Composable
-private fun MissingUserIdScreen(onBack: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text("No se pudo identificar tu usuario. Vuelve a iniciar sesión.")
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = onBack) {
-            Text("Volver")
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Libro ID: ${review.bookId}", fontWeight = FontWeight.Bold)
+            StarDisplay(rating = review.rating)
+            Text(review.comment)
+            Text("Fecha: ${review.fecha}", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

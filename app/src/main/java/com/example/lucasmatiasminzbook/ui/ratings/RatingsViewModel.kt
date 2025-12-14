@@ -1,9 +1,8 @@
 package com.example.lucasmatiasminzbook.ui.ratings
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.lucasmatiasminzbook.data.remote.RetrofitClient
 import com.example.lucasmatiasminzbook.data.remote.api.ReviewApi
 import com.example.lucasmatiasminzbook.data.remote.api.ReviewResponseDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class RatingsViewModel(
-    private val api: ReviewApi = RetrofitClient.reviewApi
+    private val api: ReviewApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RatingsUiState())
@@ -40,7 +39,6 @@ class RatingsViewModel(
                     errorMessage = null
                 )
             } catch (e: Exception) {
-                Log.e("RatingsViewModel", "Error al cargar reseñas", e)
                 _uiState.value = RatingsUiState(
                     isLoading = false,
                     reviews = emptyList(),
@@ -48,5 +46,17 @@ class RatingsViewModel(
                 )
             }
         }
+    }
+}
+
+class RatingsViewModelFactory(
+    private val reviewApi: ReviewApi
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(RatingsViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return RatingsViewModel(reviewApi) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

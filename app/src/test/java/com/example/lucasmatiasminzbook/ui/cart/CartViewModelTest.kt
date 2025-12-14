@@ -2,8 +2,12 @@ package com.example.lucasmatiasminzbook.ui.cart
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.example.lucasmatiasminzbook.data.local.book.Book
-import com.example.lucasmatiasminzbook.util.MainCoroutineRule
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
@@ -15,14 +19,19 @@ class CartViewModelTest {
     @get:Rule
     var instantExecutorRule = InstantTaskExecutorRule()
 
-    @get:Rule
-    var mainCoroutineRule = MainCoroutineRule()
+    private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var cartViewModel: CartViewModel
 
     @Before
     fun onBefore() {
+        Dispatchers.setMain(testDispatcher)
         cartViewModel = CartViewModel()
+    }
+
+    @After
+    fun onAfter() {
+        Dispatchers.resetMain()
     }
 
     private fun createDummyBook(id: Long): Book {
